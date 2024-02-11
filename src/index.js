@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const cloudinary = require('cloudinary').v2;
 const app = require('./app');
 const config = require('./config/config');
 const logger = require('./config/logger');
@@ -9,6 +10,12 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
   server = app.listen(config.port, () => {
     logger.info(`Listening to port ${config.port}`);
   });
+});
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 const exitHandler = () => {
