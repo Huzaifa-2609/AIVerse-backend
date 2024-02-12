@@ -59,16 +59,25 @@ exports.getModelByName = async (req, res) => {
 
 exports.getModels = async (req, res) => {
   try {
-    const { currentPage = 1, category, usecase } = req.query;
+    const { currentPage = 1, category, usecase, q } = req.query;
     const perPage = 12;
     let query = {};
 
     if (category) {
-      query.category = Array.isArray(category) ? { $in: category } : category;
+      const categoryArray = category.split(',');
+      query.category = Array.isArray(categoryArray) ? { $in: categoryArray } : categoryArray;
     }
 
     if (usecase) {
-      query.usecase = Array.isArray(usecase) ? { $in: usecase } : usecase;
+      const usecaseArray = usecase.split(',');
+      query.usecase = Array.isArray(usecaseArray) ? { $in: usecaseArray } : usecaseArray;
+    }
+
+    if (q) {
+      const searchQuery = {
+        $or: [{ name: { $regex: q, $options: 'i' } }, { description: { $regex: q, $options: 'i' } }],
+      };
+      query = { ...query, ...searchQuery };
     }
 
     const totalCount = await Model.countDocuments(query);
@@ -85,19 +94,5 @@ exports.getModels = async (req, res) => {
     });
   } catch (error) {
     res.status(500).send({ message: error.message });
-  }
-};
-
-exports.getModelsBySearch = async (req, res) => {
-  try {
-    const { q } = req.query;
-
-    const models = await Model.find({
-      $or: [{ name: { $regex: q, $options: 'i' } }, { description: { $regex: q, $options: 'i' } }],
-    }).limit(12);
-
-    return res.status(200).json({ message: 'success', data: models });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
   }
 };
