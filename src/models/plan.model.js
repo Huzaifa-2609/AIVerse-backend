@@ -7,14 +7,33 @@ const planSchema = new mongoose.Schema(
       required: true,
       maxlength: 50,
     },
-    plan_description: {
+
+    planDescription: {
       type: String,
       required: false,
     },
-    plan_type: {
+
+    priceId: {
+      type: String,
+      required: true,
+    },
+
+    planType: {
       type: String,
       enum: ['subscription', 'one-time'],
       required: true,
+      default: 'subscription',
+    },
+
+    billingPeriod: {
+      type: String,
+      enum: ['monthly', 'yearly'],
+      required: false,
+    },
+
+    noOfModelsAllowed: {
+      type: Number,
+      required: false,
     },
   },
   { timestamps: true }

@@ -2,12 +2,25 @@ const mongoose = require('mongoose');
 
 const sellerSchema = new mongoose.Schema(
   {
-    user_id: {
+    userId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'User',
       required: true,
     },
-    contact_info: {
+    planId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'Plan',
+    },
+    isSubscriptionActive: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    // connectId: {
+    //   type: String,
+    //   required: true,
+    // },
+    contactInfo: {
       type: String,
       required: true,
     },
@@ -17,6 +30,9 @@ const sellerSchema = new mongoose.Schema(
   }
 );
 
+/**
+ * @typedef Seller
+ */
 const Seller = mongoose.model('Seller', sellerSchema);
 
 module.exports = Seller;

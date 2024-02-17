@@ -1,6 +1,7 @@
 const httpStatus = require('http-status');
 const { User } = require('../models');
 const ApiError = require('../utils/ApiError');
+const stripe = require('../config/stripe');
 
 /**
  * Create a user
@@ -79,6 +80,31 @@ const deleteUserById = async (userId) => {
   return user;
 };
 
+/**
+ * Creates a new customer in the Stripe payment system.
+ * @param {string} name - The name of the customer.
+ * @param {string} email - The email address of the customer.
+ * @returns {Promise<object>} - A Promise that resolves with the created customer object from Stripe.
+ * @throws {Error} - If there is an error during the customer creation process.
+ */
+
+const createStripeCustomer = async (name, email) => {
+  try {
+    // Create a new customer in Stripe
+    const customer = await stripe.customers.create({
+      name: name,
+      email: email,
+    });
+
+    // Return the created customer object
+    return customer;
+  } catch (error) {
+    // Handle any errors that occur during the customer creation process
+    console.error('Error creating Stripe customer:', error);
+    throw new Error('Failed to create Stripe customer');
+  }
+};
+
 module.exports = {
   createUser,
   queryUsers,
@@ -86,4 +112,5 @@ module.exports = {
   getUserByEmail,
   updateUserById,
   deleteUserById,
+  createStripeCustomer,
 };

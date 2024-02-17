@@ -40,6 +40,11 @@ const userSchema = mongoose.Schema(
       enum: roles,
       default: 'user',
     },
+
+    stripeId: {
+      type: String,
+    },
+
     isEmailVerified: {
       type: Boolean,
       default: false,

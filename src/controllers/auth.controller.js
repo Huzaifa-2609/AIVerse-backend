@@ -3,9 +3,24 @@ const catchAsync = require('../utils/catchAsync');
 const { authService, userService, tokenService, emailService } = require('../services');
 
 const register = catchAsync(async (req, res) => {
+  // Attempt to create the user
   const user = await userService.createUser(req.body);
-  const tokens = await tokenService.generateAuthTokens(user);
-  res.status(httpStatus.CREATED).send({ user, tokens });
+
+  try {
+    // Extract user information
+    const { name, email } = user;
+
+    const stripeCustomer = await userService.createStripeCustomer(name, email);
+    user.stripeId = stripeCustomer.id;
+    await user.save();
+    const tokens = await tokenService.generateAuthTokens(user);
+
+    res.status(httpStatus.CREATED).send({ user, tokens });
+  } catch (error) {
+    await user.remove();
+
+    throw error;
+  }
 });
 
 const login = catchAsync(async (req, res) => {
