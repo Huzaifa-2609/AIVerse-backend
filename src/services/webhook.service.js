@@ -15,25 +15,26 @@ const updatePlan = async (data) => {
     const user = await User.findOne({ stripeId: data.customer });
     if (!user) {
       console.log(`No user found with this stripe id: ${data.customer}`);
-      return;
+      return null;
     }
 
     // Find the seller by userId
     const seller = await Seller.findOne({ userId: user.id });
     if (!seller) {
       console.log(`No user found with this stripe id: ${data.customer}`);
-      return;
+      return null;
     }
 
     // Find the plan by priceId
     const plan = await Plan.findOne({ priceId: data.plan.id });
     if (!plan) {
-      throw new Error('No plan found with this id');
+      console.log(`No plan found with this price id: ${data.plan.id}`);
+      return null;
     }
 
     // Update seller with new plan
     await Seller.findByIdAndUpdate(seller._id, { isSubscriptionActive: true, planId: plan._id });
-
+    await user.updateOne({ isDeveloper: true });
     // Check if consumption entry exists for the seller
     let consumption = await Consumptions.findOne({ sellerId: seller._id });
 
@@ -58,14 +59,14 @@ const deletePlan = async (data) => {
     const user = await User.findOne({ stripeId: data.customer });
     if (!user) {
       console.log(`No user found with this stripe id: ${data.customer}`);
-      return;
+      return null;
     }
 
     // Find the seller by userId
     const seller = await Seller.findOne({ userId: user.id });
     if (!seller) {
       console.log(`No seller found with this stripe id: ${data.customer}`);
-      return;
+      return null;
     }
 
     // Update seller to remove planId and set isSubscriptionActive to false

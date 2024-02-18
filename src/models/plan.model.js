@@ -13,6 +13,11 @@ const planSchema = new mongoose.Schema(
       required: false,
     },
 
+    price: {
+      type: Number,
+      required: true,
+    },
+
     priceId: {
       type: String,
       required: true,
