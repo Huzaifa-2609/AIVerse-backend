@@ -1,6 +1,21 @@
+const httpStatus = require('http-status');
+const { tokenService, emailService } = require('.');
 const { app } = require('../config/config');
 const stripe = require('../config/stripe');
-const { Seller } = require('../models');
+const { tokenTypes } = require('../config/tokens');
+const { Seller, Token } = require('../models');
+const ApiError = require('../utils/ApiError');
+
+/**
+ * Creates a Stripe checkout session for subscription.
+ * @param {string} id - Seller object containing user information.
+ * @returns {Promise<Seller>} - Returns a Promise that resolves with the Seller.
+ */
+
+const findSellerById = async (id) => {
+  const seller = await Seller.findById(id);
+  return seller;
+};
 
 /**
  * Creates a Stripe checkout session for subscription.
@@ -47,7 +62,83 @@ const createStripeCheckoutSession = async (user, plan) => {
   return session.url;
 };
 
+/**
+ * Creates a Stripe Connect account for the user.
+ * @param {string} email - The email address of the user.
+ * @returns {Promise<object>} - A Promise resolving with the created Stripe account object.
+ */
+
+const createConnectAccount = async (email) => {
+  const account = await stripe.accounts.create({
+    type: 'express',
+    email: email,
+  });
+  return account;
+};
+
+/**
+ * Generates a URL link for onboarding and connecting a Stripe Connect account.
+ * @param {string} connectId - The ID of the Stripe Connect account.
+ * @returns {Promise<object>} - A Promise resolving with the Stripe account link object containing the URL link.
+ */
+
+const createConnectLink = async (connectId) => {
+  const accountLink = await stripe.accountLinks.create({
+    account: connectId,
+    refresh_url: app.appUrl,
+    return_url: app.appUrl,
+    type: 'account_onboarding',
+  });
+  return accountLink;
+};
+
+/**
+ * Generates a URL link for managing the customer portal on stripe.
+ * @param {string} stripeId - The customer ID of the Stripe.
+ * @returns {Promise<string>} - A Promise resolving with the Stripe account link object containing the URL link.
+ */
+
+const getManageBillingPortalLink = async (stripeId) => {
+  const session = await stripe.billingPortal.sessions.create({
+    customer: stripeId,
+    return_url: `${app.appUrl}`,
+  });
+
+  return session.url;
+};
+
+/**
+ * For Sending Email to the seller after his registration.
+ * @param {Seller} seller - The seller  ID of the Stripe.
+ * @returns {Promise<void>} - A Promise resolving with the Stripe account link object containing the URL link.
+ */
+
+const sendSellerVerificationEmail = async (seller) => {
+  const verifyEmailToken = await tokenService.generateVerifySellerEmailToken(seller);
+  await emailService.sendVerificationEmail(seller.businessEmail, verifyEmailToken);
+};
+
+const verifySellerEmail = async (verifyEmailToken) => {
+  try {
+    const verifyEmailTokenDoc = await tokenService.verifySellerToken(verifyEmailToken, tokenTypes.VERIFY_EMAIL);
+    const seller = await findSellerById(verifyEmailTokenDoc.seller);
+    if (!seller) {
+      throw new Error();
+    }
+    await Token.deleteMany({ seller: seller.id, type: tokenTypes.VERIFY_EMAIL });
+    await Seller.findByIdAndUpdate(seller.id, { isEmailVerified: true });
+  } catch (error) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Email verification failed');
+  }
+};
+
 module.exports = {
   createStripeCheckoutSession,
   createSeller,
+  createConnectAccount,
+  createConnectLink,
+  findSellerById,
+  getManageBillingPortalLink,
+  sendSellerVerificationEmail,
+  verifySellerEmail,
 };

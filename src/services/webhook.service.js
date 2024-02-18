@@ -75,6 +75,7 @@ const deletePlan = async (data) => {
     throw error; // Re-throw the error to be handled by the caller
   }
 };
+
 module.exports = {
   updatePlan,
   deletePlan,

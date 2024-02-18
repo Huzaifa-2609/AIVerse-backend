@@ -6,6 +6,7 @@ const userService = require('./user.service');
 const { Token } = require('../models');
 const ApiError = require('../utils/ApiError');
 const { tokenTypes } = require('../config/tokens');
+const Seller = require('../models');
 
 /**
  * Generate token
@@ -37,6 +38,28 @@ const generateToken = (userId, expires, type, secret = config.jwt.secret) => {
 const saveToken = async (token, userId, expires, type, blacklisted = false) => {
   const tokenDoc = await Token.create({
     token,
+    user: userId,
+    expires: expires.toDate(),
+    type,
+    blacklisted,
+  });
+  return tokenDoc;
+};
+
+/**
+ * Save a seller token
+ * @param {string} token
+ * @param {ObjectId} sellerId
+ * @param {ObjectId} userId
+ * @param {Moment} expires
+ * @param {string} type
+ * @param {boolean} [blacklisted]
+ * @returns {Promise<Token>}
+ */
+const saveTokenSeller = async (token, sellerId, userId, expires, type, blacklisted = false) => {
+  const tokenDoc = await Token.create({
+    token,
+    seller: sellerId,
     user: userId,
     expires: expires.toDate(),
     type,
@@ -113,6 +136,33 @@ const generateVerifyEmailToken = async (user) => {
   return verifyEmailToken;
 };
 
+/**
+ * Generate verify email token
+ * @param {Seller} seller
+ * @returns {Promise<string>}
+ */
+const generateVerifySellerEmailToken = async (seller) => {
+  const expires = moment().add(config.jwt.verifyEmailExpirationMinutes, 'minutes');
+  const verifyEmailToken = generateToken(seller.id, expires, tokenTypes.VERIFY_EMAIL);
+  await saveTokenSeller(verifyEmailToken, seller.id, seller.userId, expires, tokenTypes.VERIFY_EMAIL);
+  return verifyEmailToken;
+};
+
+/**
+ * Verify token and return token doc (or throw an error if it is not valid)
+ * @param {string} token
+ * @param {string} type
+ * @returns {Promise<Token>}
+ */
+const verifySellerToken = async (token, type) => {
+  const payload = jwt.verify(token, config.jwt.secret);
+  const tokenDoc = await Token.findOne({ token, type, seller: payload.sub, blacklisted: false });
+  if (!tokenDoc) {
+    throw new Error('Token not found');
+  }
+  return tokenDoc;
+};
+
 module.exports = {
   generateToken,
   saveToken,
@@ -120,4 +170,6 @@ module.exports = {
   generateAuthTokens,
   generateResetPasswordToken,
   generateVerifyEmailToken,
+  generateVerifySellerEmailToken,
+  verifySellerToken,
 };

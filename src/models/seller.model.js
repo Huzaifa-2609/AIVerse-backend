@@ -16,10 +16,27 @@ const sellerSchema = new mongoose.Schema(
       required: true,
       default: false,
     },
-    // connectId: {
-    //   type: String,
-    //   required: true,
-    // },
+
+    isAccountActive: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+
+    isEmailVerified: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+
+    connectId: {
+      type: String,
+      required: false,
+    },
+    businessEmail: {
+      type: String,
+      required: false,
+    },
     contactInfo: {
       type: String,
       required: true,

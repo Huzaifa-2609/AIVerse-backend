@@ -6,8 +6,27 @@ const catchAsync = require('../utils/catchAsync');
 const planService = require('../services/plan.service');
 
 const createSeller = catchAsync(async (req, res) => {
-  const seller = await sellerService.createSeller(req.body);
-  res.status(httpStatus.OK).json({ seller });
+  const { userId, contactInfo, businessEmail } = req.body;
+  const seller = await sellerService.createSeller({ userId, contactInfo, businessEmail });
+  try {
+    const connectAccount = await sellerService.createConnectAccount(businessEmail);
+    seller.connectId = connectAccount.id;
+    seller.save();
+    res.status(httpStatus.OK).json({ seller });
+  } catch (err) {
+    seller.remove();
+    throw err;
+  }
+});
+
+const sendSellerVerificationEmail = catchAsync(async (req, res) => {
+  const { sellerId } = req.body;
+  const seller = await sellerService.findSellerById(sellerId);
+  if (!seller) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Seller not found');
+  }
+  await sellerService.sendSellerVerificationEmail(seller);
+  res.status(httpStatus.NO_CONTENT).send();
 });
 
 const selectPlan = catchAsync(async (req, res) => {
@@ -24,7 +43,39 @@ const selectPlan = catchAsync(async (req, res) => {
   res.status(httpStatus.OK).json({ url });
 });
 
+const getConnectLink = catchAsync(async (req, res) => {
+  const { sellerId } = req.body;
+  const seller = await sellerService.findSellerById(sellerId);
+  const connectAccount = await sellerService.createConnectLink(seller.connectId);
+  res.status(httpStatus.OK).json({ url: connectAccount?.url });
+});
+
+const getManageBillingLink = catchAsync(async (req, res) => {
+  const { sellerId } = req.body;
+  const seller = await sellerService.findSellerById(sellerId);
+  if (!seller) {
+    throw new Error("There's some mistake in the id you provided");
+  }
+
+  const user = await userService.getUserById(seller?.userId);
+  if (!user) {
+    throw new Error("There's some mistake in the id you provided");
+  }
+
+  const url = await sellerService.getManageBillingPortalLink(user?.stripeId);
+  res.status(httpStatus.OK).json({ portalLink: url });
+});
+
+const sellerEmailVerification = catchAsync(async (req, res) => {
+  await sellerService.verifySellerEmail(req.body.token);
+  res.status(httpStatus.NO_CONTENT).send();
+});
+
 module.exports = {
   selectPlan,
   createSeller,
+  getConnectLink,
+  getManageBillingLink,
+  sendSellerVerificationEmail,
+  sellerEmailVerification,
 };
