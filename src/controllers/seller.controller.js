@@ -6,8 +6,8 @@ const catchAsync = require('../utils/catchAsync');
 const planService = require('../services/plan.service');
 
 const createSeller = catchAsync(async (req, res) => {
-  const { userId, contactInfo, businessEmail } = req.body;
-  const seller = await sellerService.createSeller({ userId, contactInfo, businessEmail });
+  const { userId, businessEmail, occupation, phone, country, address } = req.body;
+  const seller = await sellerService.createSeller({ userId, businessEmail, occupation, phone, country, address });
   try {
     const connectAccount = await sellerService.createConnectAccount(businessEmail);
     seller.connectId = connectAccount.id;

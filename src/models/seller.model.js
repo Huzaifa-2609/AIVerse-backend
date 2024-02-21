@@ -35,11 +35,23 @@ const sellerSchema = new mongoose.Schema(
     },
     businessEmail: {
       type: String,
-      required: false,
+      required: true,
     },
-    contactInfo: {
+    occupation: {
       type: String,
       required: true,
+    },
+    phone: {
+      type: String,
+      required: true,
+    },
+    country: {
+      type: String,
+      required: true,
+    },
+    address: {
+      type: String,
+      required: false,
     },
   },
   {
