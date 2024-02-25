@@ -6,6 +6,7 @@ const sellerSchema = new mongoose.Schema(
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'User',
       required: true,
+      unique: true,
     },
     planId: {
       type: mongoose.SchemaTypes.ObjectId,
@@ -36,6 +37,7 @@ const sellerSchema = new mongoose.Schema(
     businessEmail: {
       type: String,
       required: true,
+      unique: true,
     },
     occupation: {
       type: String,
@@ -58,6 +60,14 @@ const sellerSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+sellerSchema.post('save', function (error, doc, next) {
+  if (error.name === 'MongoError' && error.code === 11000) {
+    next(new Error('Seller already exists'));
+  } else {
+    next();
+  }
+});
 
 /**
  * @typedef Seller

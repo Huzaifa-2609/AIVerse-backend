@@ -7,13 +7,24 @@ const { Seller, Token } = require('../models');
 const ApiError = require('../utils/ApiError');
 
 /**
- * Creates a Stripe checkout session for subscription.
- * @param {string} id - Seller object containing user information.
+ * Find a seller object using id.
+ * @param {string} id - Id of the seller.
  * @returns {Promise<Seller>} - Returns a Promise that resolves with the Seller.
  */
 
 const findSellerById = async (id) => {
   const seller = await Seller.findById(id);
+  return seller;
+};
+
+/**
+ * Find a seller object using id.
+ * @param {string} userId - userId of the seller.
+ * @returns {Promise<Seller>} - Returns a Promise that resolves with the Seller.
+ */
+
+const findSellerByUserId = async (userId) => {
+  const seller = await Seller.findOne({ userId });
   return seller;
 };
 
@@ -141,4 +152,5 @@ module.exports = {
   getManageBillingPortalLink,
   sendSellerVerificationEmail,
   verifySellerEmail,
+  findSellerByUserId,
 };

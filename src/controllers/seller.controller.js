@@ -10,11 +10,13 @@ const createSeller = catchAsync(async (req, res) => {
   const seller = await sellerService.createSeller({ userId, businessEmail, occupation, phone, country, address });
   try {
     const connectAccount = await sellerService.createConnectAccount(businessEmail);
+    await userService.updateUserById(userId, { isDeveloper: true });
     seller.connectId = connectAccount.id;
     seller.save();
     res.status(httpStatus.OK).json({ seller });
   } catch (err) {
     seller.remove();
+    await userService.updateUserById(userId, { isDeveloper: false });
     throw err;
   }
 });
