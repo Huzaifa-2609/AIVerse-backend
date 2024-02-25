@@ -61,4 +61,10 @@ module.exports = {
     },
     from: envVars.EMAIL_FROM,
   },
+  aws: {
+    accessKeyId: envVars.AWS_ACCES_KEY_ID,
+    secretAccessKey: envVars.AWS_SECRET_ACCESS_KEY,
+    region: envVars.S3_REGION, // e.g., 'us-east-1'
+    bucketName: envVars.S3_BUCKET_NAME // Replace with your bucket name
+  }
 };

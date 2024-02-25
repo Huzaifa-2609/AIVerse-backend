@@ -4,6 +4,7 @@ const userRoute = require('./user.route');
 const docsRoute = require('./docs.route');
 const modelRoute = require('./model.route');
 const config = require('../../config/config');
+const hostRoute = require('./modelhost.route');
 
 const router = express.Router();
 
@@ -19,6 +20,10 @@ const defaultRoutes = [
   {
     path: '/models',
     route: modelRoute,
+  },
+  {
+    path: '/models/host',
+    route: hostRoute,
   },
 ];
 
