@@ -13,6 +13,7 @@ const createSeller = catchAsync(async (req, res) => {
     await userService.updateUserById(userId, { isDeveloper: true });
     seller.connectId = connectAccount.id;
     seller.save();
+    await sellerService.sendSellerVerificationEmail(seller);
     res.status(httpStatus.OK).json({ seller });
   } catch (err) {
     seller.remove();
