@@ -131,8 +131,11 @@ const sendSellerVerificationEmail = async (seller) => {
 
 const verifySellerEmail = async (verifyEmailToken) => {
   try {
-    const verifyEmailTokenDoc = await tokenService.verifySellerToken(verifyEmailToken, tokenTypes.VERIFY_EMAIL);
     const seller = await findSellerById(verifyEmailTokenDoc.seller);
+    if (seller.isEmailVerified) {
+      return;
+    }
+    const verifyEmailTokenDoc = await tokenService.verifySellerToken(verifyEmailToken, tokenTypes.VERIFY_EMAIL);
     if (!seller) {
       throw new Error();
     }
