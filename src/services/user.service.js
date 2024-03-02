@@ -105,6 +105,46 @@ const createStripeCustomer = async (name, email) => {
   }
 };
 
+/**
+ * Creates a Stripe checkout session for subscription.
+ * @param {object} seller - Seller object containing user information.
+ * @param {object} model - Model object containing model information.
+ * @returns {Promise<string>} - Returns a Promise that resolves with the URL of the created Stripe checkout session.
+ */
+
+const createUserCheckoutSession = async (model, user) => {
+  const { name, email, stripeId } = user;
+  const { seller, priceId } = model;
+  const connectId = seller.connectId;
+
+  const session = await stripe.checkout.sessions.create(
+    {
+      billing_address_collection: 'auto',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      customer: stripeId,
+      metadata: {
+        name: name,
+        email,
+      },
+      mode: 'subscription',
+      allow_promotion_codes: true,
+      success_url: `${app.appUrl}/pricing-success?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${app.appUrl}/pricing?canceled=true`,
+    },
+    {
+      stripeAccount: connectId,
+    }
+  );
+
+  return session.url;
+};
+
 module.exports = {
   createUser,
   queryUsers,
@@ -113,4 +153,5 @@ module.exports = {
   updateUserById,
   deleteUserById,
   createStripeCustomer,
+  createUserCheckoutSession,
 };

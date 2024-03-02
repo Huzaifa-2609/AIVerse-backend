@@ -17,6 +17,7 @@ router
   .patch(auth('manageUsers'), validate(userValidation.updateUser), userController.updateUser)
   .delete(auth('manageUsers'), validate(userValidation.deleteUser), userController.deleteUser);
 
+router.post('/user-checkout-session', auth(), userController.createUserCheckoutSession);
 module.exports = router;
 
 /**

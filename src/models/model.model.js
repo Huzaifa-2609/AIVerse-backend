@@ -9,6 +9,12 @@ const modelSchema = new mongoose.Schema(
     owner: { type: String, required: true },
     category: { type: String, required: true },
     usecase: { type: String, required: true },
+    priceId: { type: String, required: false },
+    seller: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'Seller',
+      required: false,
+    },
   },
   {
     timestamps: true,
