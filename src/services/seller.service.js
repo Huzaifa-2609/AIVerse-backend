@@ -131,14 +131,18 @@ const sendSellerVerificationEmail = async (seller) => {
 
 const verifySellerEmail = async (verifyEmailToken) => {
   try {
-    const seller = await findSellerById(verifyEmailTokenDoc.seller);
-    if (seller.isEmailVerified) {
-      return;
-    }
     const verifyEmailTokenDoc = await tokenService.verifySellerToken(verifyEmailToken, tokenTypes.VERIFY_EMAIL);
+
+    const seller = await findSellerById(verifyEmailTokenDoc.seller);
+
     if (!seller) {
       throw new Error();
     }
+
+    if (seller.isEmailVerified) {
+      return;
+    }
+
     await Token.deleteMany({ seller: seller.id, type: tokenTypes.VERIFY_EMAIL });
     await Seller.findByIdAndUpdate(seller.id, { isEmailVerified: true });
   } catch (error) {

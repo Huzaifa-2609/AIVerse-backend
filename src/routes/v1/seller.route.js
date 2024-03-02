@@ -8,6 +8,6 @@ router.post('/create-checkout-session', auth('selectPlan'), sellerController.sel
 router.post('/connect-registration', auth('connectRegistration'), sellerController.getConnectLink);
 router.post('/manage-billing', auth('manageBilling'), sellerController.getManageBillingLink);
 router.post('/send-verification-email', auth(), sellerController.sendSellerVerificationEmail);
-router.post('/verify-email', sellerController.sellerEmailVerification);
+router.post('/verify-email', auth(), sellerController.sellerEmailVerification);
 
 module.exports = router;
