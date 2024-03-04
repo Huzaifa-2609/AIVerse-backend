@@ -1,3 +1,4 @@
+const { sellerService } = require('.');
 const stripe = require('../config/stripe');
 const { Model } = require('../models');
 
@@ -18,14 +19,20 @@ async function getModelWithSellerDetails(modelId) {
 
 /**
  * Create a new model product in Stripe
- * @param {Object} model - Model details
+ * @param {string} name - Name of the Model
+ * @param {string} connectId - ID of the connected Stripe account
  * @returns {Promise<{ id: string, priceId: string | null }>} - Promise that resolves to the created product's ID and price ID
  */
-const createModelProduct = async (model) => {
+const createModelProduct = async (name, connectId) => {
   try {
-    const stripeProduct = await stripe.products.create({
-      name: model.name,
-    });
+    const stripeProduct = await stripe.products.create(
+      {
+        name: name,
+      },
+      {
+        stripeAccount: connectId,
+      }
+    );
     return { id: stripeProduct.id, priceId: null };
   } catch (error) {
     console.error('Error creating Stripe product:', error);
@@ -36,20 +43,26 @@ const createModelProduct = async (model) => {
 /**
  * Create a new price (product variant) in Stripe
  * @param {string} productId - ID of the stripe product the price belongs to
- * @param {Object} product - Product details
+ * @param {number} price - Price of the product
+ * @param {string} connectId - ID of the connected Stripe account
  * @returns {Promise<Object>} - Promise that resolves to the created price object
  */
-const createModelPrice = async (productId, product) => {
+const createModelPrice = async (productId, price, connectId) => {
   try {
-    const price = await stripe.prices.create({
-      unit_amount: product.price * 100,
-      currency: 'usd',
-      recurring: {
-        interval: 'month',
+    const stripePrice = await stripe.prices.create(
+      {
+        unit_amount: price * 100,
+        currency: 'usd',
+        recurring: {
+          interval: 'month',
+        },
+        product: productId,
       },
-      product: productId,
-    });
-    return price;
+      {
+        stripeAccount: connectId,
+      }
+    );
+    return stripePrice;
   } catch (error) {
     console.error('Error creating Stripe price:', error);
     throw error;
@@ -59,13 +72,18 @@ const createModelPrice = async (productId, product) => {
 /**
  * Create a new product and its price in Stripe
  * @param {Object} product - Product details
+ * @param {string} product.name - Name of the product
+ * @param {number} product.price - Price of the product
+ * @param {string} seller - ID of the seller
  * @returns {Promise<{ id: string, priceId: string }>} - Promise that resolves to the created product's ID and price ID
  */
-const createStripeModel = async (product) => {
+const createStripeModel = async (product, seller) => {
   try {
-    const { id } = await createModelProduct(product);
-    const price = await createModelPrice(id, product);
-    return { id: id, priceId: price.id };
+    const { price, name } = product;
+    const { connectId } = await sellerService.findSellerById(seller);
+    const { id } = await createModelProduct(name, connectId);
+    const stripePrice = await createModelPrice(id, price, connectId);
+    return { id: id, priceId: stripePrice.id };
   } catch (error) {
     console.error('Error creating Stripe product and price:', error);
     throw error;

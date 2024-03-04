@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const { User } = require('../models');
 const ApiError = require('../utils/ApiError');
 const stripe = require('../config/stripe');
+const { app } = require('../config/config');
 
 /**
  * Create a user
@@ -115,6 +116,9 @@ const createStripeCustomer = async (name, email) => {
 const createUserCheckoutSession = async (model, user) => {
   const { name, email, stripeId } = user;
   const { seller, priceId } = model;
+  if (!seller) {
+    throw new Error('There is no seller associated with this model id');
+  }
   const connectId = seller.connectId;
 
   const session = await stripe.checkout.sessions.create(
@@ -127,7 +131,10 @@ const createUserCheckoutSession = async (model, user) => {
           quantity: 1,
         },
       ],
-      customer: stripeId,
+      subscription_data: {
+        application_fee_percent: 10,
+      },
+      customer_email: email,
       metadata: {
         name: name,
         email,

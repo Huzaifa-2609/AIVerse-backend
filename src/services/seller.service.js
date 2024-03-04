@@ -83,6 +83,14 @@ const createConnectAccount = async (email) => {
   const account = await stripe.accounts.create({
     type: 'express',
     email: email,
+    capabilities: {
+      card_payments: {
+        requested: true,
+      },
+      transfers: {
+        requested: true,
+      },
+    },
   });
   return account;
 };
