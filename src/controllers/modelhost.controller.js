@@ -1,6 +1,4 @@
 const AWS = require('aws-sdk');
-const { SageMakerClient, S3Client } = require('@aws-sdk/client-sagemaker');
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const fs = require('fs')
 const config = require('./../config/config')
 const Docker = require('dockerode');
@@ -13,18 +11,16 @@ const { exec } = require('child_process');
 const hostModelToSageMaker = async (s3Filename, imageName) => {
     try {
         const sm = new AWS.SageMaker();
-        let s3URL = `s3://aiversebucket/${s3Filename}`
-        let dockerImage = `975050334693.dkr.ecr.us-east-2.amazonaws.com/aiverseecr:${imageName}`
-        // let s3URL = `s3://aiversebucket1/model-1709363942814.tar.gz`
-        // let dockerImage = `975050334693.dkr.ecr.us-east-2.amazonaws.com/aiverseecr:model-1709363942814.tar.gz-1709363943793`
-        let modelName = "AIVERSE-MODEL"
+        let s3URL = `${process.env.S3_BUCKET_URI}${s3Filename}`
+        let dockerImage = `${process.env.ECR_REPO_URI}${imageName}`
+        let modelName = "AIVERSE-MODEL-TEST-HASEEB-2"
         const createModelParams = {
             ModelName: modelName,
             PrimaryContainer: {
                 Image: dockerImage,
                 ModelDataUrl: s3URL
             },
-            ExecutionRoleArn: 'arn:aws:iam::975050334693:role/AIVERSE@123'
+            ExecutionRoleArn: process.env.SAGEMAKER_EXECUTION_ROLE_ARN
         };
         const modelResult = await sm.createModel(createModelParams).promise();
         console.log('Model created:', modelResult);
@@ -55,7 +51,7 @@ const hostModelToSageMaker = async (s3Filename, imageName) => {
     }
 }
 
-const createDockerImage = async (filepath, req, res, imageName) => {
+const createDockerImage = async (req, res, imageName) => {
     try {
         const docker = new Docker();
         let dockerfilePath = `${req.file.destination}`; // Path to your Dockerfile template
@@ -65,12 +61,20 @@ const createDockerImage = async (filepath, req, res, imageName) => {
 
         const dockerfileContent =
             `   FROM python:3.7
-            COPY ./${req.file.filename} /app/
-            RUN tar -xvf /app/${req.file.filename}
-            EXPOSE 8080
-            WORKDIR /app
-            RUN pip install Flask
-            ENTRYPOINT ["python3", "/app/api.py"]`
+        COPY ./${req.file.filename} /app/
+        WORKDIR /app/
+        RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        EXPOSE 8080
+        RUN pip install Flask
+        ENTRYPOINT ["python3", "api.py"]`
+        // const dockerfileContent =
+        //     `   FROM python:3.7
+        // COPY ./${req.file.filename} /app/
+        // WORKDIR /app/
+        // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        // EXPOSE 8080
+        // RUN pip install Flask transformers[torch]
+        // ENTRYPOINT ["python3", "api.py"]`
 
         fs.writeFile(dockerfilePath, dockerfileContent, function (err) {
             if (err) {
@@ -106,10 +110,8 @@ const createDockerImage = async (filepath, req, res, imageName) => {
                                 break;
                             }
                         }
-                        // let getImg = docker.getImage(encodeURIComponent(imageName));
-                        const ecrLoginCommand = `aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 975050334693.dkr.ecr.us-east-2.amazonaws.com`;
 
-                        exec(ecrLoginCommand, (error, stdout, stderr) => {
+                        exec(process.env.ECR_LOGIN_COMMAND, (error, stdout, stderr) => {
                             if (error) {
                                 console.error('Error getting login command:', error);
                                 deleteFolder(normalPath)
@@ -117,7 +119,7 @@ const createDockerImage = async (filepath, req, res, imageName) => {
                             }
                             console.log(`Login command: ${stdout}`);
 
-                            let tagCommand = `docker tag ${imageName} 975050334693.dkr.ecr.us-east-2.amazonaws.com/aiverseecr:${imageName}`
+                            let tagCommand = `docker tag ${imageName} ${process.env.ECR_REPO_URI}${imageName}`
                             exec(tagCommand, (error, stdout, stderr) => {
                                 if (error) {
                                     console.error('Error getting tag command:', error);
@@ -125,7 +127,8 @@ const createDockerImage = async (filepath, req, res, imageName) => {
                                     return;
                                 }
                                 console.log(`Tag command: ${stdout}`);
-                                let pushCommand = `docker push 975050334693.dkr.ecr.us-east-2.amazonaws.com/aiverseecr:${imageName}`
+
+                                let pushCommand = `docker push ${process.env.ECR_REPO_URI}${imageName}`
                                 exec(pushCommand, async (error, stdout, stderr) => {
                                     if (error) {
                                         console.error('Error getting Push command:', error);
@@ -184,7 +187,7 @@ exports.hostModelToAWS = async (req, res) => {
             return res.status(400).send('No files were uploaded.');
         }
 
-        console.log(req.file)
+        console.log("The Uploaded File is : ", req.file)
 
         // Get the uploaded file path
         let filePath = req.file.path;
@@ -205,9 +208,9 @@ exports.hostModelToAWS = async (req, res) => {
         await uploadToS3(req, filePath)
 
         //build docker image
-        // let imageUri = `aiverseecr:${req.file.filename}-${Date.now()}`
+
         let imageUri = `${req.file.filename}-${Date.now()}`
-        await createDockerImage(filePath, req, res, imageUri)
+        await createDockerImage(req, res, imageUri)
 
         //save image to ECR
         // await saveToECR(imageUri, req, res)
