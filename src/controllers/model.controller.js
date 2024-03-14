@@ -1,17 +1,19 @@
 const Model = require('../models/model.model');
 
 const cloudinary = require('cloudinary');
+const { modelService } = require('../services');
 
 exports.createModel = async (req, res) => {
-  try {
-    const { name, description, img, price, owner, category, usecase } = req.body;
+  const { name, description, img, price, owner, category, usecase, seller } = req.body;
 
+  let model = null;
+  try {
     const response = await cloudinary.v2.uploader.upload(img, {
       folder: 'models',
       transformation: [{ width: 275, height: 170 }],
     });
 
-    await Model.create({
+    model = await Model.create({
       name,
       description,
       img: response.secure_url,
@@ -19,11 +21,16 @@ exports.createModel = async (req, res) => {
       owner,
       category,
       usecase,
+      seller,
     });
 
+    const stripeModel = await modelService.createStripeModel(model, seller);
+    model.priceId = stripeModel.priceId;
+    model.save();
     res.status(201).json({ message: 'Model created successfully' });
   } catch (error) {
     console.log(error);
+    model?.remove();
     res.status(500).json({ message: error.message });
   }
 };

@@ -3,6 +3,9 @@ const authRoute = require('./auth.route');
 const userRoute = require('./user.route');
 const docsRoute = require('./docs.route');
 const modelRoute = require('./model.route');
+const sellerRoute = require('./seller.route');
+const planRoutes = require('./plans.route');
+const webhookRoutes = require('./webhook.route');
 const config = require('../../config/config');
 const hostRoute = require('./modelhost.route');
 
@@ -21,6 +24,18 @@ const defaultRoutes = [
     path: '/models',
     route: modelRoute,
   },
+  {
+    path: '/seller',
+    route: sellerRoute,
+  },
+  {
+    path: '/plan',
+    route: planRoutes,
+  },
+  // {
+  //   path: '/webhook',
+  //   route: webhookRoutes,
+  // },
   {
     path: '/models/host',
     route: hostRoute,
