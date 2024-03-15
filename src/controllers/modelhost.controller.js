@@ -13,7 +13,7 @@ const hostModelToSageMaker = async (s3Filename, imageName) => {
         const sm = new AWS.SageMaker();
         let s3URL = `${process.env.S3_BUCKET_URI}${s3Filename}`
         let dockerImage = `${process.env.ECR_REPO_URI}${imageName}`
-        let modelName = "AIVERSE-MODEL-TEST-HASEEB-2"
+        let modelName = "AIVERSE-MODEL-TEST-UPLOAD-2"
         const createModelParams = {
             ModelName: modelName,
             PrimaryContainer: {
@@ -59,22 +59,22 @@ const createDockerImage = async (req, res, imageName) => {
         let normalPath = dockerfilePath
         dockerfilePath = dockerfilePath + '/Dockerfile'
 
-        const dockerfileContent =
-            `   FROM python:3.7
-        COPY ./${req.file.filename} /app/
-        WORKDIR /app/
-        RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-        EXPOSE 8080
-        RUN pip install Flask
-        ENTRYPOINT ["python3", "api.py"]`
         // const dockerfileContent =
         //     `   FROM python:3.7
         // COPY ./${req.file.filename} /app/
         // WORKDIR /app/
         // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
         // EXPOSE 8080
-        // RUN pip install Flask transformers[torch]
+        // RUN pip install Flask
         // ENTRYPOINT ["python3", "api.py"]`
+        const dockerfileContent =
+            `   FROM python:3.7
+        COPY ./${req.file.filename} /app/
+        WORKDIR /app/
+        RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        EXPOSE 8080
+        RUN pip install Flask transformers[torch]
+        ENTRYPOINT ["python3", "api.py"]`
 
         fs.writeFile(dockerfilePath, dockerfileContent, function (err) {
             if (err) {
