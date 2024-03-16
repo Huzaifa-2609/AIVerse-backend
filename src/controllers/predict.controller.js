@@ -7,7 +7,8 @@ exports.makeModelInference = async (req, res) => {
     // console.log(req.user._id)
     try {
         let requestData = {
-            data: req.body
+            data: req.body,
+            endpoint: 'test-MODEL-TEST-UPLOAD-2-endpoint'
         }
         let request = {
             host: process.env.API_GATEWAY_HOST,

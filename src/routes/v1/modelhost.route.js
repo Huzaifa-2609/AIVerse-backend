@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs')
 const auth = require('../../middlewares/auth');
 
-const { hostModelToAWS, makeModelInference } = require('../../controllers/modelhost.controller');
+const { hostModelToAWS } = require('../../controllers/modelhost.controller');
 
 // Multer configuration
 const storage = multer.diskStorage({
@@ -47,6 +47,5 @@ const upload = multer({
 // router.post('/', upload.single('file'), hostModelToAWS);
 router.post('/', upload.single('file'), hostModelToAWS);
 
-router.post('/inference', auth(), makeModelInference);
 
 module.exports = router;

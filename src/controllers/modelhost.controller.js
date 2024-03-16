@@ -60,13 +60,14 @@ const createDockerImage = async (req, res, imageName) => {
         let normalPath = dockerfilePath
         dockerfilePath = dockerfilePath + '/Dockerfile'
 
+
         // const dockerfileContent =
         //     `   FROM python:3.7
         // COPY ./${req.file.filename} /app/
         // WORKDIR /app/
         // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
         // EXPOSE 8080
-        // RUN pip install Flask
+        // RUN pip install Flask transformers[torch]
         // ENTRYPOINT ["python3", "api.py"]`
         const dockerfileContent =
             `   FROM python:3.7
@@ -74,7 +75,7 @@ const createDockerImage = async (req, res, imageName) => {
         WORKDIR /app/
         RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
         EXPOSE 8080
-        RUN pip install Flask transformers[torch]
+        RUN pip install --no-cache-dir -r requirements.txt
         ENTRYPOINT ["python3", "api.py"]`
 
         fs.writeFile(dockerfilePath, dockerfileContent, function (err) {
@@ -211,8 +212,8 @@ exports.hostModelToAWS = async (req, res) => {
 
         //build docker image
 
-        /*let imageUri = `${req.file.filename}-${Date.now()}`
-        await createDockerImage(req, res, imageUri)*/
+        let imageUri = `${req.file.filename}-${Date.now()}`
+        await createDockerImage(req, res, imageUri)
 
         //save image to ECR
         // await saveToECR(imageUri, req, res)
@@ -226,44 +227,6 @@ exports.hostModelToAWS = async (req, res) => {
         // await getRepoConfig()
 
         res.status(200).json({ message: 'File uploaded and converted successfully.' });
-
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: error.message });
-    }
-};
-
-exports.makeModelInference = async (req, res) => {
-    // console.log(req.user._id)
-    try {
-        let requestData = {
-            data: req.body
-        }
-        let request = {
-            host: process.env.API_GATEWAY_HOST,
-            method: 'POST',
-            url: process.env.API_GATEWAY_ENDPOINT,
-            data: requestData, // object describing the foo
-            body: JSON.stringify(requestData), // aws4 looks for body; axios for data
-            path: process.env.API_GATEWAY_PATH,
-            headers: {
-                'content-type': 'application/json'
-            }
-        }
-
-        let signedRequest = aws4.sign(request,
-            {
-                secretAccessKey: process.env.API_GATEWAY_SECRET_ACCESS_KEY,
-                accessKeyId: process.env.API_GATEWAY_ACCESSKEY_ID,
-                sessionToken: AWS.config.credentials.sessionToken
-            })
-
-        delete signedRequest.headers['Host']
-        delete signedRequest.headers['Content-Length']
-
-        let { data } = await axios(signedRequest)
-
-        res.status(200).json({ data })
 
     } catch (error) {
         console.log(error);
