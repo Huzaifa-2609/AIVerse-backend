@@ -5,7 +5,8 @@ const Docker = require('dockerode');
 const tar = require('tar')
 const path = require('path');
 const { exec } = require('child_process');
-
+const axios = require('axios');
+const aws4 = require('aws4');
 
 
 const hostModelToSageMaker = async (s3Filename, imageName) => {
@@ -183,6 +184,7 @@ const deleteFolder = (path) => {
 
 exports.hostModelToAWS = async (req, res) => {
     try {
+        console.log(req.files)
         if (!req.file) {
             return res.status(400).send('No files were uploaded.');
         }
@@ -209,8 +211,8 @@ exports.hostModelToAWS = async (req, res) => {
 
         //build docker image
 
-        let imageUri = `${req.file.filename}-${Date.now()}`
-        await createDockerImage(req, res, imageUri)
+        /*let imageUri = `${req.file.filename}-${Date.now()}`
+        await createDockerImage(req, res, imageUri)*/
 
         //save image to ECR
         // await saveToECR(imageUri, req, res)
@@ -224,6 +226,44 @@ exports.hostModelToAWS = async (req, res) => {
         // await getRepoConfig()
 
         res.status(200).json({ message: 'File uploaded and converted successfully.' });
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.makeModelInference = async (req, res) => {
+    // console.log(req.user._id)
+    try {
+        let requestData = {
+            data: req.body
+        }
+        let request = {
+            host: process.env.API_GATEWAY_HOST,
+            method: 'POST',
+            url: process.env.API_GATEWAY_ENDPOINT,
+            data: requestData, // object describing the foo
+            body: JSON.stringify(requestData), // aws4 looks for body; axios for data
+            path: process.env.API_GATEWAY_PATH,
+            headers: {
+                'content-type': 'application/json'
+            }
+        }
+
+        let signedRequest = aws4.sign(request,
+            {
+                secretAccessKey: process.env.API_GATEWAY_SECRET_ACCESS_KEY,
+                accessKeyId: process.env.API_GATEWAY_ACCESSKEY_ID,
+                sessionToken: AWS.config.credentials.sessionToken
+            })
+
+        delete signedRequest.headers['Host']
+        delete signedRequest.headers['Content-Length']
+
+        let { data } = await axios(signedRequest)
+
+        res.status(200).json({ data })
 
     } catch (error) {
         console.log(error);

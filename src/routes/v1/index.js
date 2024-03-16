@@ -8,6 +8,7 @@ const planRoutes = require('./plans.route');
 const webhookRoutes = require('./webhook.route');
 const config = require('../../config/config');
 const hostRoute = require('./modelhost.route');
+const predictRoute = require('./predict.route');
 
 const router = express.Router();
 
@@ -39,6 +40,10 @@ const defaultRoutes = [
   {
     path: '/models/host',
     route: hostRoute,
+  },
+  {
+    path: '/model/predict',
+    route: predictRoute,
   },
 ];
 

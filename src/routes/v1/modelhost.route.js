@@ -3,8 +3,9 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs')
+const auth = require('../../middlewares/auth');
 
-const { hostModelToAWS } = require('../../controllers/modelhost.controller');
+const { hostModelToAWS, makeModelInference } = require('../../controllers/modelhost.controller');
 
 // Multer configuration
 const storage = multer.diskStorage({
@@ -31,8 +32,21 @@ const storage = multer.diskStorage({
     }
 })
 
-const upload = multer({ storage: storage });
+const upload = multer({
+    storage: storage,
+    /*fileFilter: (req, file, cb) => {
+        // Check if the file name is either 'file' or 'requirement'
+        if (file.fieldname === 'file' || file.fieldname === 'requirement') {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file fieldname'));
+        }
+    }*/
+});
 
+// router.post('/', upload.single('file'), hostModelToAWS);
 router.post('/', upload.single('file'), hostModelToAWS);
+
+router.post('/inference', auth(), makeModelInference);
 
 module.exports = router;
