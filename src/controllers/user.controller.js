@@ -46,7 +46,9 @@ const createUserCheckoutSession = catchAsync(async (req, res) => {
     return res.status(httpStatus.BAD_REQUEST).json({ message: 'There may be an issue with the model id' });
   }
 
-  const url = await userService.createUserCheckoutSession(model, user);
+  const sellerCustomer = await sellerService.findSellerCustomer(userId);
+
+  const url = await userService.createUserCheckoutSession(model, user, sellerCustomer);
   res.status(httpStatus.OK).json({ url });
 });
 

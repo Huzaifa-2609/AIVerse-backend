@@ -27,6 +27,34 @@ const handleStripeWebhook = catchAsync(async (req, res) => {
   res.sendStatus(200);
 });
 
+const handleConnectWebhook = catchAsync(async (req, res) => {
+  const event = stripe.webhooks.constructEvent(
+    req.body,
+    req.headers['stripe-signature'],
+    config.stripe.connectWebhookSecret
+  );
+
+  console.log(JSON.stringify(event.data.object, null, 2));
+
+  switch (event.type) {
+    case events.SUBSCRIPTION_CREATED:
+      await webhookService.updateUserPlan(event.data.object);
+
+      break;
+
+    case events.SUBSCRIPTION_UPDATED:
+      await webhookService.updateUserPlan(event);
+      break;
+
+    case events.SUBSCRIPTION_DELETED:
+      await webhookService.deleteUserPlan(event.data.object);
+      break;
+  }
+
+  res.sendStatus(200);
+});
+
 module.exports = {
   handleStripeWebhook,
+  handleConnectWebhook,
 };

@@ -16,6 +16,10 @@ const modelPurchaseSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    isActive: {
+      type: Boolean,
+      required: true,
+    },
   },
   {
     timestamps: true,

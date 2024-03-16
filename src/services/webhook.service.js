@@ -1,4 +1,5 @@
-const { Seller, Plan, Consumptions, User } = require('../models');
+const { userService, sellerService } = require('.');
+const { Seller, Plan, Consumptions, User, SellerCustomers, Model, ModelPurchase } = require('../models');
 
 const updatePlan = async (data) => {
   try {
@@ -77,7 +78,84 @@ const deletePlan = async (data) => {
   }
 };
 
+const createOrReturnSellerCustomer = async (event) => {
+  try {
+    const data = event.data.object;
+    const seller = await Seller.findOne({ connectId: event.account });
+    if (!seller) {
+      console.log(`No seller found with this connect id: ${event.account}`);
+      return null;
+    }
+
+    const user = await userService.getUserByEmail(data.email);
+    if (!user) {
+      console.log(`No seller found with this connect id: ${event.account}`);
+      return null;
+    }
+
+    return await sellerService.createSellerCustomerIfNotExists(seller.id, user.id, data.id);
+  } catch (error) {
+    console.error('Error creating customer:', error);
+    throw error;
+  }
+};
+
+const updateUserPlan = async (event) => {
+  try {
+    const data = event.data.object;
+    if (
+      data.status !== 'active' ||
+      data.cancellation_details?.reason === 'cancellation_requested' ||
+      data.status === 'past_due'
+    ) {
+      return;
+    }
+
+    const sellerCustomer = await createOrReturnSellerCustomer(event);
+
+    const model = await Model.findOne({ priceId: data.plan.id });
+    if (!model) {
+      console.log(`No plan found with this price id: ${data.plan.id}`);
+      return null;
+    }
+
+    const modelPurchaseData = {
+      user: sellerCustomer.customerId,
+      model: model.id,
+      isActive: true,
+    };
+
+    await ModelPurchase.create(modelPurchaseData);
+  } catch (error) {
+    console.error('Error buying plan:', error);
+    throw error;
+  }
+};
+
+const deleteUserPlan = async (data) => {
+  try {
+    const user = await SellerCustomers.findOne({ stripeCustomerId: data.customer });
+    if (!user) {
+      console.log(`No user found with this stripe id: ${data.customer}`);
+      return null;
+    }
+
+    const model = await Model.findOne({ priceId: data.plan.id });
+    if (!model) {
+      console.log(`No plan found with this price id: ${data.plan.id}`);
+      return null;
+    }
+
+    await ModelPurchase.updateOne({ user: user.customerId, model: model.id }, { isActive: false });
+  } catch (error) {
+    console.error('Error deleting plan:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   updatePlan,
   deletePlan,
+  updateUserPlan,
+  deleteUserPlan,
 };

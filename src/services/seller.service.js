@@ -3,7 +3,7 @@ const { tokenService, emailService } = require('.');
 const { app } = require('../config/config');
 const stripe = require('../config/stripe');
 const { tokenTypes } = require('../config/tokens');
-const { Seller, Token } = require('../models');
+const { Seller, Token, SellerCustomers } = require('../models');
 const ApiError = require('../utils/ApiError');
 
 /**
@@ -158,6 +158,54 @@ const verifySellerEmail = async (verifyEmailToken) => {
   }
 };
 
+/**
+ * Finds a seller's customer document in the MongoDB collection based on the provided user ID.
+ * @param {string} userId - The ID of the user (customer) to find.
+ * @returns {Promise<SellerCustomers|null>} - A promise that resolves with the found customer document or null if not found.
+ * @throws {ApiError} - Throws an error with status code 500 if an unexpected error occurs during the database operation.
+ */
+
+const findSellerCustomer = async (userId) => {
+  try {
+    const sellerCustomer = await SellerCustomers.findOne({ customerId: userId });
+
+    return sellerCustomer || null;
+  } catch (error) {
+    console.log(error);
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Oops! Something went wrong');
+  }
+};
+
+/**
+ * Creates a new seller-customer relationship in the MongoDB collection if the relationship does not already exist.
+ * @param {string} sellerId - The ID of the seller.
+ * @param {string} customerId - The ID of the customer.
+ * @param {string} stripeCustomerId - The Stripe customer ID associated with the customer.
+ */
+async function createSellerCustomerIfNotExists(sellerId, customerId, stripeCustomerId) {
+  try {
+    const existingRelationship = await SellerCustomers.findOne({ sellerId: sellerId, customerId: customerId });
+
+    if (!existingRelationship) {
+      const newRelationship = new SellerCustomers({
+        sellerId: sellerId,
+        customerId: customerId,
+        stripeCustomerId: stripeCustomerId,
+      });
+
+      await newRelationship.save();
+      console.log('Seller-customer relationship created successfully ✔️.');
+      return newRelationship;
+    } else {
+      console.log('Seller-customer relationship already exists.');
+      return existingRelationship;
+    }
+  } catch (error) {
+    // Log and handle errors
+    console.error('Error creating seller-customer relationship:', error);
+  }
+}
+
 module.exports = {
   createStripeCheckoutSession,
   createSeller,
@@ -168,4 +216,6 @@ module.exports = {
   sendSellerVerificationEmail,
   verifySellerEmail,
   findSellerByUserId,
+  findSellerCustomer,
+  createSellerCustomerIfNotExists,
 };
