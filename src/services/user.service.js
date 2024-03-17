@@ -110,16 +110,18 @@ const createStripeCustomer = async (name, email) => {
  * Creates a Stripe checkout session for subscription.
  * @param {object} seller - Seller object containing user information.
  * @param {object} model - Model object containing model information.
+ * @param {object} sellerCustomer - sellerCustomer object containing customer of seller information.
  * @returns {Promise<string>} - Returns a Promise that resolves with the URL of the created Stripe checkout session.
  */
 
-const createUserCheckoutSession = async (model, user) => {
+const createUserCheckoutSession = async (model, user, sellerCustomer) => {
   const { name, email, stripeId } = user;
   const { seller, priceId } = model;
   if (!seller) {
     throw new Error('There is no seller associated with this model id');
   }
   const connectId = seller.connectId;
+  const customer = sellerCustomer?.stripeCustomerId;
 
   const session = await stripe.checkout.sessions.create(
     {
@@ -131,10 +133,15 @@ const createUserCheckoutSession = async (model, user) => {
           quantity: 1,
         },
       ],
+      customer: customer,
       subscription_data: {
         application_fee_percent: 10,
+        metadata: {
+          name: name,
+          email,
+        },
       },
-      customer_email: email,
+      customer_email: customer ? undefined : email,
       metadata: {
         name: name,
         email,
@@ -152,6 +159,22 @@ const createUserCheckoutSession = async (model, user) => {
   return session.url;
 };
 
+/**
+ * Retrieves a customer from Stripe using the customer ID.
+ * @param {string} customerId - The ID of the customer to retrieve.
+ * @param {string|null} connectId - (Optional) The ID of the connected Stripe account.
+ * @returns {Promise<Object>} - A promise that resolves with the customer object.
+ */
+async function retrieveCustomer(customerId, connectId = null) {
+  try {
+    const options = connectId ? { stripeAccount: connectId } : undefined;
+    const customer = await stripe.customers.retrieve(customerId, options);
+    return customer;
+  } catch (error) {
+    throw new Error(`Error retrieving customer: ${error.message}`);
+  }
+}
+
 module.exports = {
   createUser,
   queryUsers,
@@ -161,4 +184,5 @@ module.exports = {
   deleteUserById,
   createStripeCustomer,
   createUserCheckoutSession,
+  retrieveCustomer,
 };
