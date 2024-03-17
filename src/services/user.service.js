@@ -136,6 +136,10 @@ const createUserCheckoutSession = async (model, user, sellerCustomer) => {
       customer: customer,
       subscription_data: {
         application_fee_percent: 10,
+        metadata: {
+          name: name,
+          email,
+        },
       },
       customer_email: customer ? undefined : email,
       metadata: {

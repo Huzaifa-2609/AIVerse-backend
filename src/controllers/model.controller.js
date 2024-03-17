@@ -8,15 +8,15 @@ exports.createModel = async (req, res) => {
 
   let model = null;
   try {
-    const response = await cloudinary.v2.uploader.upload(img, {
-      folder: 'models',
-      transformation: [{ width: 275, height: 170 }],
-    });
+    // const response = await cloudinary.v2.uploader.upload(img, {
+    //   folder: 'models',
+    //   transformation: [{ width: 275, height: 170 }],
+    // });
 
     model = await Model.create({
       name,
       description,
-      img: response.secure_url,
+      img: 'response.secure_url',
       price,
       owner,
       category,

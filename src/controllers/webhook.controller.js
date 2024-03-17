@@ -38,7 +38,7 @@ const handleConnectWebhook = catchAsync(async (req, res) => {
 
   switch (event.type) {
     case events.SUBSCRIPTION_CREATED:
-      await webhookService.updateUserPlan(event.data.object);
+      await webhookService.updateUserPlan(event);
 
       break;
 

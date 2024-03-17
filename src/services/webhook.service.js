@@ -78,22 +78,21 @@ const deletePlan = async (data) => {
   }
 };
 
-const createOrReturnSellerCustomer = async (event) => {
+const createOrReturnSellerCustomer = async (account, customerEmail, stripeId) => {
   try {
-    const data = event.data.object;
-    const seller = await Seller.findOne({ connectId: event.account });
+    const seller = await Seller.findOne({ connectId: account });
     if (!seller) {
-      console.log(`No seller found with this connect id: ${event.account}`);
+      console.log(`No seller found with this connect id: ${account}`);
       return null;
     }
 
-    const user = await userService.getUserByEmail(data.email);
+    const user = await userService.getUserByEmail(customerEmail);
     if (!user) {
-      console.log(`No seller found with this connect id: ${event.account}`);
+      console.log(`No user found with this email: ${customerEmail}`);
       return null;
     }
 
-    return await sellerService.createSellerCustomerIfNotExists(seller.id, user.id, data.id);
+    return await sellerService.createSellerCustomerIfNotExists(seller.id, user.id, stripeId);
   } catch (error) {
     console.error('Error creating customer:', error);
     throw error;
@@ -111,7 +110,12 @@ const updateUserPlan = async (event) => {
       return;
     }
 
-    const sellerCustomer = await createOrReturnSellerCustomer(event);
+    const sellerCustomer = await createOrReturnSellerCustomer(event.account, data.metadata.email, data.customer);
+
+    if (!sellerCustomer) {
+      console.log(`No user found with this stripe id: ${data.customer}`);
+      return null;
+    }
 
     const model = await Model.findOne({ priceId: data.plan.id });
     if (!model) {
