@@ -7,14 +7,47 @@ const path = require('path');
 const { exec } = require('child_process');
 const axios = require('axios');
 const aws4 = require('aws4');
+const Model = require('../models/model.model')
 
+const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
+    try {
+        let status = 'Creating';
+        while (status === 'Creating') {
+            const describeEndpointParams = {
+                EndpointName: endpointName
+            };
+            const endpointDescription = await sm.describeEndpoint(describeEndpointParams).promise();
+            status = endpointDescription.EndpointStatus;
 
-const hostModelToSageMaker = async (s3Filename, imageName) => {
+            console.log(`Endpoint status: ${status}`);
+
+            // Wait for a few seconds before checking again
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+
+        //update status in db
+        await updatModel({ status: status }, modelId)
+
+    } catch (error) {
+        console.error('Error checking endpoint status:', error);
+        throw error;
+    }
+};
+
+const updatModel = async (body, id) => {
+    try {
+        await Model.findByIdAndUpdate(id, body)
+    } catch (error) {
+        console.log('Error in updating model in db ', error)
+    }
+}
+
+const hostModelToSageMaker = async (req, s3Filename, imageName, modelId) => {
     try {
         const sm = new AWS.SageMaker();
         let s3URL = `${process.env.S3_BUCKET_URI}${s3Filename}`
         let dockerImage = `${process.env.ECR_REPO_URI}${imageName}`
-        let modelName = "AIVERSE-MODEL-TEST-UPLOAD-2"
+        let modelName = req.body.modelName
         const createModelParams = {
             ModelName: modelName,
             PrimaryContainer: {
@@ -45,14 +78,20 @@ const hostModelToSageMaker = async (s3Filename, imageName) => {
         const endpointResult = await sm.createEndpoint(createEndpointParams).promise();
         console.log('Endpoint created:', endpointResult);
 
+        await updatModel({ endpoint: `${modelName}-endpoint` }, modelId)
+
+        // Wait for the endpoint to be in service
+        await waitAndUpdateEndpointStatus(sm, `${modelName}-endpoint`, modelId);
+
         return endpointResult.EndpointArn;
     } catch (error) {
         console.error('Error deploying model:', error);
+        await updatModel({ 'status': 'Failed' }, modelId)
         throw error;
     }
 }
 
-const createDockerImage = async (req, res, imageName) => {
+const createDockerImage = async (req, res, imageName, modelId) => {
     try {
         const docker = new Docker();
         let dockerfilePath = `${req.file.destination}`; // Path to your Dockerfile template
@@ -67,7 +106,7 @@ const createDockerImage = async (req, res, imageName) => {
         // WORKDIR /app/
         // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
         // EXPOSE 8080
-        // RUN pip install Flask transformers[torch]
+        // RUN pip install Flask
         // ENTRYPOINT ["python3", "api.py"]`
         const dockerfileContent =
             `   FROM python:3.7
@@ -78,9 +117,10 @@ const createDockerImage = async (req, res, imageName) => {
         RUN pip install --no-cache-dir -r requirements.txt
         ENTRYPOINT ["python3", "api.py"]`
 
-        fs.writeFile(dockerfilePath, dockerfileContent, function (err) {
+        fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
             if (err) {
                 console.log('err.....', err)
+                await updatModel({ 'status': 'Failed' }, modelId)
                 deleteFolder(normalPath)
             }
             console.log('Saved!');
@@ -90,9 +130,10 @@ const createDockerImage = async (req, res, imageName) => {
         docker.buildImage(
             { context: normalPath, src: ["Dockerfile", `./${req.file.filename}`] },
             { t: imageName },
-            (err, stream) => {
+            async (err, stream) => {
                 if (err) {
                     console.error(err);
+                    await updatModel({ 'status': 'Failed' }, modelId)
                     return;
                 }
 
@@ -101,6 +142,7 @@ const createDockerImage = async (req, res, imageName) => {
                 async function onFinished(err, output) {
                     if (err) {
                         console.error(err);
+                        await updatModel({ 'status': 'Failed' }, modelId)
                         deleteFolder(normalPath)
                     } else {
                         console.log("Image built successfully:", output);
@@ -113,18 +155,20 @@ const createDockerImage = async (req, res, imageName) => {
                             }
                         }
 
-                        exec(process.env.ECR_LOGIN_COMMAND, (error, stdout, stderr) => {
+                        exec(process.env.ECR_LOGIN_COMMAND, async (error, stdout, stderr) => {
                             if (error) {
                                 console.error('Error getting login command:', error);
+                                await updatModel({ 'status': 'Failed' }, modelId)
                                 deleteFolder(normalPath)
                                 return;
                             }
                             console.log(`Login command: ${stdout}`);
 
                             let tagCommand = `docker tag ${imageName} ${process.env.ECR_REPO_URI}${imageName}`
-                            exec(tagCommand, (error, stdout, stderr) => {
+                            exec(tagCommand, async (error, stdout, stderr) => {
                                 if (error) {
                                     console.error('Error getting tag command:', error);
+                                    await updatModel({ 'status': 'Failed' }, modelId)
                                     deleteFolder(normalPath)
                                     return;
                                 }
@@ -134,11 +178,12 @@ const createDockerImage = async (req, res, imageName) => {
                                 exec(pushCommand, async (error, stdout, stderr) => {
                                     if (error) {
                                         console.error('Error getting Push command:', error);
+                                        await updatModel({ 'status': 'Failed' }, modelId)
                                         deleteFolder(normalPath)
                                         return;
                                     } else {
                                         console.log(`Push command: ${stdout}`);
-                                        await hostModelToSageMaker(req.file.filename, imageName)
+                                        await hostModelToSageMaker(req, req.file.filename, imageName, modelId)
                                     }
                                     deleteFolder(normalPath)
                                 })
@@ -154,6 +199,7 @@ const createDockerImage = async (req, res, imageName) => {
         );
     } catch (error) {
         console.log(error);
+        await updatModel({ 'status': 'Failed' }, modelId)
         return res.status(500).json({ message: error.message });
     }
 }
@@ -183,9 +229,23 @@ const deleteFolder = (path) => {
     });
 }
 
+const insertInModel = async (req) => {
+    let obj = {
+        'name': req.body.modelName
+    }
+    try {
+        let model = await Model.create(obj)
+        console.log('Model Is Created ', model)
+        return model;
+    } catch (e) {
+        console.log('Error in creating model in db', e)
+    }
+
+    return {}
+}
+
 exports.hostModelToAWS = async (req, res) => {
     try {
-        console.log(req.files)
         if (!req.file) {
             return res.status(400).send('No files were uploaded.');
         }
@@ -210,10 +270,15 @@ exports.hostModelToAWS = async (req, res) => {
         // upload tar file to s3 bucket
         await uploadToS3(req, filePath)
 
-        //build docker image
+        //save in db
 
+        let model = await insertInModel(req)
+
+        let modelId = model && model._id ? model._id : null
+
+        //build docker image
         let imageUri = `${req.file.filename}-${Date.now()}`
-        await createDockerImage(req, res, imageUri)
+        await createDockerImage(req, res, imageUri, modelId)
 
         //save image to ECR
         // await saveToECR(imageUri, req, res)
