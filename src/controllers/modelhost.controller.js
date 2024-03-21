@@ -8,6 +8,7 @@ const { exec } = require('child_process');
 const axios = require('axios');
 const aws4 = require('aws4');
 const Model = require('../models/model.model')
+const { deleteFromS3, deleteEcrIamge, deleteAllModelConfigFromSagemaker } = require('../Helper/awshelper')
 
 const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
     try {
@@ -100,22 +101,22 @@ const createDockerImage = async (req, res, imageName, modelId) => {
         dockerfilePath = dockerfilePath + '/Dockerfile'
 
 
-        // const dockerfileContent =
-        //     `   FROM python:3.7
-        // COPY ./${req.file.filename} /app/
-        // WORKDIR /app/
-        // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-        // EXPOSE 8080
-        // RUN pip install Flask
-        // ENTRYPOINT ["python3", "api.py"]`
         const dockerfileContent =
             `   FROM python:3.7
         COPY ./${req.file.filename} /app/
         WORKDIR /app/
         RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
         EXPOSE 8080
-        RUN pip install --no-cache-dir -r requirements.txt
+        RUN pip install Flask
         ENTRYPOINT ["python3", "api.py"]`
+        // const dockerfileContent =
+        //     `   FROM python:3.7
+        // COPY ./${req.file.filename} /app/
+        // WORKDIR /app/
+        // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        // EXPOSE 8080
+        // RUN pip install --no-cache-dir -r requirements.txt
+        // ENTRYPOINT ["python3", "api.py"]`
 
         fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
             if (err) {
@@ -183,6 +184,8 @@ const createDockerImage = async (req, res, imageName, modelId) => {
                                         return;
                                     } else {
                                         console.log(`Push command: ${stdout}`);
+                                        console.log('ImageName : ', imageName)
+                                        await updatModel({ 'imagetag': imageName, 'ecrreponame': process.env.ECR_REPO_NAME }, modelId)
                                         await hostModelToSageMaker(req, req.file.filename, imageName, modelId)
                                     }
                                     deleteFolder(normalPath)
@@ -204,14 +207,57 @@ const createDockerImage = async (req, res, imageName, modelId) => {
     }
 }
 
-const uploadToS3 = async (req, filePath) => {
-    const s3 = new AWS.S3();
-    const uploadParams = {
-        Bucket: config.aws.bucketName,
-        Key: `${req.file.filename}`,
-        Body: fs.readFileSync(filePath)
-    };
-    await s3.upload(uploadParams).promise();
+const uploadToS3 = async (req, filePath, modelId) => {
+    try {
+        const s3 = new AWS.S3();
+        const uploadParams = {
+            Bucket: config.aws.bucketName,
+            Key: `${req.file.filename}`,
+            Body: fs.readFileSync(filePath)
+        };
+        let result = await s3.upload(uploadParams).promise();
+        await updatModel({ 'bucketname': result?.Bucket, 'bucketobjectkey': result?.Key }, modelId)
+        console.log('Successfully uploaded to s3', result)
+    } catch (error) {
+        console.log('Error in uploading s3 ', error)
+    }
+}
+
+const deleteS3 = async (modelId) => {
+    try {
+        const model = await Model.findById(modelId);
+        if (model.bucketname && model.bucketobjectkey) {
+            deleteFromS3(model.bucketname, model.bucketobjectkey)
+            console.log('successfully deleted from s3')
+        }
+
+    } catch (error) {
+        console.log(error)
+    }
+}
+
+const deleteSagemakerConfigs = async (modelId) => {
+    try {
+        const model = await Model.findById(modelId);
+        if (model.name) {
+            deleteAllModelConfigFromSagemaker(model.name)
+            console.log('successfully deleted from sagemaker')
+        }
+    } catch (error) {
+        console.log(error)
+    }
+}
+
+const deleteImage = async (modelId) => {
+    try {
+        const model = await Model.findById(modelId);
+        if (model.imagetag && model.ecrreponame) {
+            deleteEcrIamge(model.ecrreponame, model.imagetag)
+            console.log('successfully deleted from ecr')
+        }
+    } catch (error) {
+        console.log(error)
+    }
 }
 
 
@@ -255,41 +301,16 @@ exports.hostModelToAWS = async (req, res) => {
         // Get the uploaded file path
         let filePath = req.file.path;
 
-        // let destination = req.file.destination
-
-        // // Create a tar.gz archive
-        // var archivePath = `${filePath}.tar.gz`;
-
-        // // Create tar stream
-        // const tarStream = fs.createWriteStream(archivePath);
-
-        // // Create a tar archive from the uploaded file
-        // const files = [req.file.filename];
-        // await tar.c({ gzip: true, file: archivePath, cwd: destination }, files);
+        //save in db
+        let model = await insertInModel(req)
+        let modelId = model && model._id ? model._id : null
 
         // upload tar file to s3 bucket
-        await uploadToS3(req, filePath)
-
-        //save in db
-
-        let model = await insertInModel(req)
-
-        let modelId = model && model._id ? model._id : null
+        await uploadToS3(req, filePath, modelId)
 
         //build docker image
         let imageUri = `${req.file.filename}-${Date.now()}`
         await createDockerImage(req, res, imageUri, modelId)
-
-        //save image to ECR
-        // await saveToECR(imageUri, req, res)
-
-        //delete the original uploaded file
-        // deleteFile(filePath);
-
-        //delete the tar file
-        // deleteFile(archivePath);
-
-        // await getRepoConfig()
 
         res.status(200).json({ message: 'File uploaded and converted successfully.' });
 

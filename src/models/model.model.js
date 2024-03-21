@@ -16,7 +16,11 @@ const modelSchema = new mongoose.Schema(
       required: false,
     },
     endpoint: String,
-    status: { type: String, enum: ['Creating', 'Failed', 'InService'], default: 'Creating' }
+    status: { type: String, enum: ['Creating', 'Failed', 'InService'], default: 'Creating' },
+    bucketname: String,
+    bucketobjectkey: String,
+    imagetag: String,
+    ecrreponame: String
   },
   {
     timestamps: true,
