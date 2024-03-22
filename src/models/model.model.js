@@ -6,7 +6,6 @@ const modelSchema = new mongoose.Schema(
     description: { type: String, /*required: true*/ },
     img: { type: String },
     price: { type: Number, /*required: true*/ },
-    owner: { type: String, /*required: true*/ },
     category: { type: String, /*required: true*/ },
     usecase: { type: String, /*required: true*/ },
     priceId: { type: String, required: false },

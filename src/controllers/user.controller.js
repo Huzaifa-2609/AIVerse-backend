@@ -39,9 +39,9 @@ const createUserCheckoutSession = catchAsync(async (req, res) => {
 
   const isAlreadyTaken = await modelService.getModelPurchaseDetails(modelId, userId);
 
-  if (isAlreadyTaken) {
-    return res.status(httpStatus.BAD_REQUEST).json({ message: 'User has already purchase the model' });
-  }
+  // if (isAlreadyTaken) {
+  //   return res.status(httpStatus.BAD_REQUEST).json({ message: 'User has already purchase the model' });
+  // }
 
   const user = await userService.getUserById(userId);
   if (!user) {

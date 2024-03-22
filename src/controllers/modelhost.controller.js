@@ -2,13 +2,10 @@ const AWS = require('aws-sdk');
 const fs = require('fs')
 const config = require('./../config/config')
 const Docker = require('dockerode');
-const tar = require('tar')
-const path = require('path');
 const { exec } = require('child_process');
-const axios = require('axios');
-const aws4 = require('aws4');
 const Model = require('../models/model.model')
 const { deleteFromS3, deleteEcrIamge, deleteAllModelConfigFromSagemaker } = require('../Helper/awshelper')
+
 
 const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
     try {
@@ -101,22 +98,22 @@ const createDockerImage = async (req, res, imageName, modelId) => {
         dockerfilePath = dockerfilePath + '/Dockerfile'
 
 
-        const dockerfileContent =
-            `   FROM python:3.7
-        COPY ./${req.file.filename} /app/
-        WORKDIR /app/
-        RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-        EXPOSE 8080
-        RUN pip install Flask
-        ENTRYPOINT ["python3", "api.py"]`
         // const dockerfileContent =
         //     `   FROM python:3.7
         // COPY ./${req.file.filename} /app/
         // WORKDIR /app/
         // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
         // EXPOSE 8080
-        // RUN pip install --no-cache-dir -r requirements.txt
+        // RUN pip install Flask
         // ENTRYPOINT ["python3", "api.py"]`
+        const dockerfileContent =
+            `   FROM python:3.7
+        COPY ./${req.file.filename} /app/
+        WORKDIR /app/
+        RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        EXPOSE 8080
+        RUN pip install --no-cache-dir -r requirements.txt
+        ENTRYPOINT ["python3", "api.py"]`
 
         fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
             if (err) {
@@ -293,9 +290,8 @@ const insertInModel = async (req) => {
 exports.hostModelToAWS = async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).send('No files were uploaded.');
+            return res.status(400).json({ isError: true, message: 'No files were uploaded.' });
         }
-
         console.log("The Uploaded File is : ", req.file)
 
         // Get the uploaded file path

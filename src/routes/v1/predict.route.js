@@ -4,6 +4,6 @@ const auth = require('../../middlewares/auth');
 
 const { makeModelInference } = require('../../controllers/predict.controller');
 
-router.post('/', auth(), makeModelInference);
+router.post('/:modelid', auth(), makeModelInference);
 
 module.exports = router;
