@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const generateModelApiKey = require('../Helper/generateApiKey');
 
 const modelPurchaseSchema = new mongoose.Schema(
   {
@@ -19,6 +20,15 @@ const modelPurchaseSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       required: true,
+    },
+    apiKey: {
+      type: String,
+      unique: true,
+      default: function () {
+        const modelId = this.model;
+        const userId = this.user;
+        return generateModelApiKey(modelId, userId);
+      },
     },
   },
   {

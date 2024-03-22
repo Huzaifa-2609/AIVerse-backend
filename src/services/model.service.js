@@ -1,6 +1,6 @@
 const { sellerService } = require('.');
 const stripe = require('../config/stripe');
-const { Model } = require('../models');
+const { Model, ModelPurchase } = require('../models');
 
 /**
  * Get user by id
@@ -90,7 +90,18 @@ const createStripeModel = async (product, seller) => {
   }
 };
 
+const getModelPurchaseDetails = async (model, user) => {
+  try {
+    const modelPurchaseData = await ModelPurchase.findOne({ model, user });
+    return modelPurchaseData;
+  } catch (error) {
+    console.error('Error finding model purchase details');
+    throw error;
+  }
+};
+
 module.exports = {
   getModelWithSellerDetails,
   createStripeModel,
+  getModelPurchaseDetails,
 };

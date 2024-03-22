@@ -36,6 +36,13 @@ const deleteUser = catchAsync(async (req, res) => {
 
 const createUserCheckoutSession = catchAsync(async (req, res) => {
   const { userId, modelId } = req.body;
+
+  const isAlreadyTaken = await modelService.getModelPurchaseDetails(modelId, userId);
+
+  if (isAlreadyTaken) {
+    return res.status(httpStatus.BAD_REQUEST).json({ message: 'User has already purchase the model' });
+  }
+
   const user = await userService.getUserById(userId);
   if (!user) {
     return res.status(httpStatus.BAD_REQUEST).json({ message: 'There may be an issue with the user id' });
