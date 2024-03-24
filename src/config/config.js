@@ -27,6 +27,7 @@ const envVarsSchema = Joi.object()
     STRIPE_SECRET_KEY: Joi.string().description('stripe private key'),
     APP_URL: Joi.string().description('App URL'),
     WEBHOOK_SECRET: Joi.string().description('Webhook endpoint secret'),
+    CONNECT_WEBHOOK_SECRET: Joi.string().description('Connect Webhook endpoint secret'),
   })
   .unknown();
 
@@ -54,6 +55,7 @@ module.exports = {
     publishableKey: envVars.STRIPE_PUBLISHABLE_KEY,
     secretKey: envVars.STRIPE_SECRET_KEY,
     webhookSecret: envVars.WEBHOOK_SECRET,
+    connectWebhookSecret: envVars.CONNECT_WEBHOOK_SECRET,
   },
   jwt: {
     secret: envVars.JWT_SECRET,
@@ -73,4 +75,10 @@ module.exports = {
     },
     from: envVars.EMAIL_FROM,
   },
+  aws: {
+    accessKeyId: envVars.AWS_ACCES_KEY_ID,
+    secretAccessKey: envVars.AWS_SECRET_ACCESS_KEY,
+    region: envVars.S3_REGION, // e.g., 'us-east-1'
+    bucketName: envVars.S3_BUCKET_NAME // Replace with your bucket name
+  }
 };

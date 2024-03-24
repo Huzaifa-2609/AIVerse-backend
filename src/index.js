@@ -3,6 +3,7 @@ const cloudinary = require('cloudinary').v2;
 const app = require('./app');
 const config = require('./config/config');
 const logger = require('./config/logger');
+const AWS = require('aws-sdk');
 
 let server;
 mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
@@ -16,6 +17,15 @@ cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+AWS.config.update({
+  // accessKeyId: config.aws.accessKeyId,
+  // secretAccessKey: config.aws.secretAccessKey,
+  // region: config.aws.region
+  accessKeyId: process.env.AWS_ACCES_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.S3_REGION
 });
 
 const exitHandler = () => {

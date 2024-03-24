@@ -4,6 +4,7 @@ const events = {
   SUBSCRIPTION_CREATED: 'customer.subscription.created',
   SUBSCRIPTION_DELETED: 'customer.subscription.deleted',
   PAYMENT_FAILED: 'invoice.payment_failed',
+  CUSTOMER_CREATED: 'customer.created',
 };
 
 module.exports = {

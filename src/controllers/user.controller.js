@@ -2,7 +2,7 @@ const httpStatus = require('http-status');
 const pick = require('../utils/pick');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
-const { userService } = require('../services');
+const { userService, sellerService, modelService } = require('../services');
 
 const createUser = catchAsync(async (req, res) => {
   const user = await userService.createUser(req.body);
@@ -34,10 +34,36 @@ const deleteUser = catchAsync(async (req, res) => {
   res.status(httpStatus.NO_CONTENT).send();
 });
 
+const createUserCheckoutSession = catchAsync(async (req, res) => {
+  const { userId, modelId } = req.body;
+
+  const isAlreadyTaken = await modelService.getModelPurchaseDetails(modelId, userId);
+
+  // if (isAlreadyTaken) {
+  //   return res.status(httpStatus.BAD_REQUEST).json({ message: 'User has already purchase the model' });
+  // }
+
+  const user = await userService.getUserById(userId);
+  if (!user) {
+    return res.status(httpStatus.BAD_REQUEST).json({ message: 'There may be an issue with the user id' });
+  }
+
+  const model = await modelService.getModelWithSellerDetails(modelId);
+  if (!model) {
+    return res.status(httpStatus.BAD_REQUEST).json({ message: 'There may be an issue with the model id' });
+  }
+
+  const sellerCustomer = await sellerService.findSellerCustomer(userId);
+
+  const url = await userService.createUserCheckoutSession(model, user, sellerCustomer);
+  res.status(httpStatus.OK).json({ url });
+});
+
 module.exports = {
   createUser,
   getUsers,
   getUser,
   updateUser,
   deleteUser,
+  createUserCheckoutSession,
 };
