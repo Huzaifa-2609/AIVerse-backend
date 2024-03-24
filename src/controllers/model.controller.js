@@ -2,21 +2,31 @@ const Model = require('../models/model.model');
 
 const cloudinary = require('cloudinary');
 const { modelService } = require('../services');
+const { hostModelToAWS } = require('../controllers/modelhost.controller');
+
 
 exports.createModel = async (req, res) => {
   const { name, description, img, price, owner, category, usecase, seller } = req.body;
 
+  if (!req.file) {
+    return res.status(400).json({ isError: true, message: 'No files were uploaded.' });
+  }
+  console.log("The Uploaded File is : ", req.file)
+
   let model = null;
   try {
-    const response = await cloudinary.v2.uploader.upload(img, {
-      folder: 'models',
-      transformation: [{ width: 275, height: 170 }],
-    });
+    let response;
+    if (img) {
+      response = await cloudinary.v2.uploader.upload(img, {
+        folder: 'models',
+        transformation: [{ width: 275, height: 170 }],
+      });
+    }
 
     model = await Model.create({
       name,
       description,
-      img: response.secure_url,
+      img: response?.secure_url,
       price,
       owner,
       category,
@@ -27,7 +37,8 @@ exports.createModel = async (req, res) => {
     const stripeModel = await modelService.createStripeModel(model, seller);
     model.priceId = stripeModel.priceId;
     model.save();
-    res.status(201).json({ message: 'Model created successfully' });
+    await hostModelToAWS(req, res, model)
+    // res.status(201).json({ message: 'Model created successfully' });
   } catch (error) {
     console.log(error);
     model?.remove();
