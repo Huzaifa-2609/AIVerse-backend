@@ -1,6 +1,6 @@
-const Model = require('../models/model.model');
-
 const cloudinary = require('cloudinary');
+const Model = require('../models/model.model');
+const Seller = require('../models/seller.model');
 
 exports.createModel = async (req, res) => {
   try {
@@ -11,17 +11,67 @@ exports.createModel = async (req, res) => {
       transformation: [{ width: 275, height: 170 }],
     });
 
-    await Model.create({
+    const newModel = await Model.create({
       name,
       description,
-      img: response.secure_url,
+      img: img ? response.secure_url : '',
       price,
       owner,
       category,
       usecase,
     });
 
+    const seller = await Seller.findOne({ _id: owner });
+
+    if (seller) {
+      seller.models.push(newModel._id);
+      await seller.save();
+    }
+
     res.status(201).json({ message: 'Model created successfully' });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.updateModel = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, img, category, usecase, documentation } = req.body;
+    let updatedFields = {};
+
+    if (name) {
+      updatedFields.name = name;
+    }
+
+    if (description) {
+      updatedFields.description = description;
+    }
+
+    if (img) {
+      const response = await cloudinary.v2.uploader.upload(img, {
+        folder: 'models',
+        transformation: [{ width: 275, height: 170 }],
+      });
+      updatedFields.img = response.secure_url;
+    }
+
+    if (category) {
+      updatedFields.category = category;
+    }
+
+    if (usecase) {
+      updatedFields.usecase = usecase;
+    }
+
+    if (documentation) {
+      updatedFields.documentation = documentation;
+    }
+
+    const updatedModel = await Model.findByIdAndUpdate(id, updatedFields, { new: true });
+
+    res.status(200).json({ message: 'Model updated successfully', model: updatedModel });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });
@@ -48,9 +98,8 @@ exports.getUsecases = async (req, res) => {
 
 exports.getModelByName = async (req, res) => {
   try {
-    const { name } = req.params;
-    const model = await Model.findOne({ name });
-
+    const { id } = req.params;
+    const model = await Model.findById(id);
     return res.send(model);
   } catch (error) {
     return res.status(404).send({ message: error.message });
@@ -92,6 +141,25 @@ exports.getModels = async (req, res) => {
       totalPages,
       totalCount,
     });
+  } catch (error) {
+    res.status(500).send({ message: error.message });
+  }
+};
+
+exports.getModelsBySeller = async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    const { modelName } = req.query;
+
+    const query = { owner: sellerId };
+
+    if (modelName) {
+      query.name = { $regex: new RegExp(modelName, 'i') };
+    }
+
+    const models = await Model.find(query).limit(3);
+
+    res.status(200).json({ models });
   } catch (error) {
     res.status(500).send({ message: error.message });
   }

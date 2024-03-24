@@ -3,12 +3,17 @@ const mongoose = require('mongoose');
 const modelSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true },
-    description: { type: String, required: true },
-    img: { type: String },
-    price: { type: Number, required: true },
-    owner: { type: String, required: true },
-    category: { type: String, required: true },
-    usecase: { type: String, required: true },
+    description: { type: String, required: true, maxlength: 250 },
+    img: { type: String, required: true },
+    price: { type: Number },
+    owner: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'Seller',
+      required: true,
+    },
+    category: { type: String },
+    usecase: { type: String },
+    documentation: { type: String },
   },
   {
     timestamps: true,

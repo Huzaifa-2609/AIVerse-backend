@@ -55,6 +55,12 @@ const sellerSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
+    models: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Model',
+      },
+    ],
   },
   {
     timestamps: true,
