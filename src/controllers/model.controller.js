@@ -4,7 +4,7 @@ const Seller = require('../models/seller.model');
 const { modelService } = require('../services');
 
 exports.createModel = async (req, res) => {
-  const { name, description, img, price, owner, category, usecase, seller } = req.body;
+  const { name, description, img, price, seller, category, usecase } = req.body;
 
   let model = null;
   try {
@@ -13,25 +13,24 @@ exports.createModel = async (req, res) => {
       transformation: [{ width: 275, height: 170 }],
     });
 
-    model = await Model.create({
+    const newModel = await Model.create({
       name,
       description,
       img: img ? response.secure_url : '',
       price,
-      owner,
+      seller,
       category,
       usecase,
-      seller,
     });
 
-    const seller = await Seller.findOne({ _id: owner });
+    const existingSeller = await Seller.findOne({ _id: seller });
 
-    if (seller) {
-      seller.models.push(newModel._id);
-      await seller.save();
+    if (existingSeller) {
+      existingSeller.models.push(newModel._id);
+      await existingSeller.save();
     }
 
-    const stripeModel = await modelService.createStripeModel(model, seller);
+    const stripeModel = await modelService.createStripeModel(model, existingSeller);
     model.priceId = stripeModel.priceId;
     model.save();
     res.status(201).json({ message: 'Model created successfully' });
@@ -158,7 +157,7 @@ exports.getModelsBySeller = async (req, res) => {
     const { sellerId } = req.params;
     const { modelName } = req.query;
 
-    const query = { owner: sellerId };
+    const query = { seller: sellerId };
 
     if (modelName) {
       query.name = { $regex: new RegExp(modelName, 'i') };
