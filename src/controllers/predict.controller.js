@@ -36,7 +36,7 @@ exports.makeModelInference = async (req, res) => {
         }
         let endPoint;
         let modelData = await Model.findById(req.params.modelid);
-        if (modelEndpoint) {
+        if (modelData.endpoint) {
             endPoint = modelData.endpoint
         }
         if (endPoint) {

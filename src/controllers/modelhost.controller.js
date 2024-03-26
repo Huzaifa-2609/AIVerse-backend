@@ -4,6 +4,7 @@ const config = require('./../config/config')
 const Docker = require('dockerode');
 const { exec } = require('child_process');
 const Model = require('../models/model.model')
+const User = require('../models/user.model')
 const { deleteFromS3, deleteEcrIamge, deleteAllModelConfigFromSagemaker } = require('../Helper/awshelper')
 
 
@@ -45,7 +46,7 @@ const hostModelToSageMaker = async (req, s3Filename, imageName, modelId) => {
         const sm = new AWS.SageMaker();
         let s3URL = `${process.env.S3_BUCKET_URI}${s3Filename}`
         let dockerImage = `${process.env.ECR_REPO_URI}${imageName}`
-        let modelName = req.body.modelName
+        let modelName = req.body.name
         const createModelParams = {
             ModelName: modelName,
             PrimaryContainer: {
@@ -98,22 +99,30 @@ const createDockerImage = async (req, res, imageName, modelId) => {
         dockerfilePath = dockerfilePath + '/Dockerfile'
 
 
+        const dockerfileContent =
+            `   FROM python:3.8
+        COPY ./${req.file.filename} /app/
+        WORKDIR /app/
+        RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        EXPOSE 8080
+        RUN pip install Flask feature-engine==0.6.0 joblib==1.0.1 numpy==1.19.5 pandas==1.1.5 patsy==0.5.1 python-dateutil==2.8.1 scikit-learn==0.23.1 pytz==2021.1 scipy==1.5.4 six==1.16.0 threadpoolctl==2.1.0 statsmodels==0.12.2
+        ENTRYPOINT ["python3", "predictor.py"]`
         // const dockerfileContent =
-        //     `   FROM python:3.7
+        //     `   FROM python:3.8
         // COPY ./${req.file.filename} /app/
         // WORKDIR /app/
         // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
         // EXPOSE 8080
         // RUN pip install Flask
         // ENTRYPOINT ["python3", "api.py"]`
-        const dockerfileContent =
-            `   FROM python:3.7
-        COPY ./${req.file.filename} /app/
-        WORKDIR /app/
-        RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-        EXPOSE 8080
-        RUN pip install --no-cache-dir -r requirements.txt
-        ENTRYPOINT ["python3", "api.py"]`
+        // const dockerfileContent =
+        //     `   FROM python:3.7
+        // COPY ./${req.file.filename} /app/
+        // WORKDIR /app/
+        // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        // EXPOSE 8080
+        // RUN pip install --no-cache-dir -r requirements.txt
+        // ENTRYPOINT ["python3", "api.py"]`
 
         fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
             if (err) {
@@ -272,22 +281,22 @@ const deleteFolder = (path) => {
     });
 }
 
-const insertInModel = async (req) => {
-    let obj = {
-        'name': req.body.modelName
-    }
-    try {
-        let model = await Model.create(obj)
-        console.log('Model Is Created ', model)
-        return model;
-    } catch (e) {
-        console.log('Error in creating model in db', e)
-    }
+// const insertInModel = async (req) => {
+//     let obj = {
+//         'name': req.body.modelName
+//     }
+//     try {
+//         let model = await Model.create(obj)
+//         console.log('Model Is Created ', model)
+//         return model;
+//     } catch (e) {
+//         console.log('Error in creating model in db', e)
+//     }
 
-    return {}
-}
+//     return {}
+// }
 
-exports.hostModelToAWS = async (req, res) => {
+exports.hostModelToAWS = async (req, res, model) => {
     try {
         if (!req.file) {
             return res.status(400).json({ isError: true, message: 'No files were uploaded.' });
@@ -298,7 +307,6 @@ exports.hostModelToAWS = async (req, res) => {
         let filePath = req.file.path;
 
         //save in db
-        let model = await insertInModel(req)
         let modelId = model && model._id ? model._id : null
 
         // upload tar file to s3 bucket
