@@ -64,7 +64,8 @@ const hostModelToSageMaker = async (req, s3Filename, imageName, modelId) => {
                 VariantName: 'default-variant',
                 ModelName: modelName,
                 InitialInstanceCount: 1,
-                InstanceType: 'ml.t2.medium'
+                // InstanceType: 'ml.t2.medium'
+                InstanceType: 'ml.p2.xlarge'
             }]
         };
         const endpointConfigResult = await sm.createEndpointConfig(createEndpointConfigParams).promise();
@@ -99,14 +100,14 @@ const createDockerImage = async (req, res, imageName, modelId) => {
         dockerfilePath = dockerfilePath + '/Dockerfile'
 
 
-        const dockerfileContent =
-            `   FROM python:3.8
-        COPY ./${req.file.filename} /app/
-        WORKDIR /app/
-        RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-        EXPOSE 8080
-        RUN pip install Flask feature-engine==0.6.0 joblib==1.0.1 numpy==1.19.5 pandas==1.1.5 patsy==0.5.1 python-dateutil==2.8.1 scikit-learn==0.23.1 pytz==2021.1 scipy==1.5.4 six==1.16.0 threadpoolctl==2.1.0 statsmodels==0.12.2
-        ENTRYPOINT ["python3", "predictor.py"]`
+        // const dockerfileContent =
+        //     `   FROM python:3.8
+        // COPY ./${req.file.filename} /app/
+        // WORKDIR /app/
+        // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        // EXPOSE 8080
+        // RUN pip install Flask feature-engine==0.6.0 joblib==1.0.1 numpy==1.19.5 pandas==1.1.5 patsy==0.5.1 python-dateutil==2.8.1 scikit-learn==0.23.1 pytz==2021.1 scipy==1.5.4 six==1.16.0 threadpoolctl==2.1.0 statsmodels==0.12.2
+        // ENTRYPOINT ["python3", "predictor.py"]`
         // const dockerfileContent =
         //     `   FROM python:3.8
         // COPY ./${req.file.filename} /app/
@@ -115,14 +116,14 @@ const createDockerImage = async (req, res, imageName, modelId) => {
         // EXPOSE 8080
         // RUN pip install Flask
         // ENTRYPOINT ["python3", "api.py"]`
-        // const dockerfileContent =
-        //     `   FROM python:3.7
-        // COPY ./${req.file.filename} /app/
-        // WORKDIR /app/
-        // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-        // EXPOSE 8080
-        // RUN pip install --no-cache-dir -r requirements.txt
-        // ENTRYPOINT ["python3", "api.py"]`
+        const dockerfileContent =
+            `   FROM python:3.8
+        COPY ./${req.file.filename} /app/
+        WORKDIR /app/
+        RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        EXPOSE 8080
+        RUN pip install --no-cache-dir -r requirements.txt
+        ENTRYPOINT ["python3", "api.py"]`
 
         fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
             if (err) {

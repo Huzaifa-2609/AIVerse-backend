@@ -4,7 +4,7 @@ const modelSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true },
     description: { type: String, required: true, maxlength: 250 },
-    img: { type: String, required: true },
+    img: { type: String, /*required: true*/ },
     price: { type: String },
     seller: {
       type: mongoose.SchemaTypes.ObjectId,
