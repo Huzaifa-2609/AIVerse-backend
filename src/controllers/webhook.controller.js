@@ -49,6 +49,10 @@ const handleConnectWebhook = catchAsync(async (req, res) => {
     case events.SUBSCRIPTION_DELETED:
       await webhookService.deleteUserPlan(event.data.object);
       break;
+
+    case events.ACCOUNT_UPDATED:
+      await webhookService.updateAccountStatus(event);
+      break;
   }
 
   res.sendStatus(200);

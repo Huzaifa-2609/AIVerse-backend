@@ -5,6 +5,7 @@ const events = {
   SUBSCRIPTION_DELETED: 'customer.subscription.deleted',
   PAYMENT_FAILED: 'invoice.payment_failed',
   CUSTOMER_CREATED: 'customer.created',
+  ACCOUNT_UPDATED: 'account.updated',
 };
 
 module.exports = {

@@ -157,9 +157,21 @@ const deleteUserPlan = async (data) => {
   }
 };
 
+const updateAccountStatus = async (event) => {
+  try {
+    const data = event.data.object;
+    const isActive = data.charges_enabled && data.capabilities.card_payments === 'active';
+    await Seller.findOneAndUpdate({ connectId: event.account }, { $set: { isAccountActive: isActive } }, { new: true });
+  } catch (error) {
+    console.error('Error updating the status of the account:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   updatePlan,
   deletePlan,
   updateUserPlan,
   deleteUserPlan,
+  updateAccountStatus,
 };
