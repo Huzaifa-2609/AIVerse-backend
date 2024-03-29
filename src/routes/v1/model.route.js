@@ -12,6 +12,7 @@ const {
   getCategories,
   getModelsBySeller,
   getUsecases,
+  hostModel
 } = require('../../controllers/model.controller');
 
 // Multer configuration
@@ -42,7 +43,8 @@ const upload = multer({
 router.get('/', getModels);
 // router.post('/create', createModel);
 router.put('/update/:id', updateModel);
-router.post('/create'/*, upload.single('file')*/, createModel);
+router.post('/create', createModel);
+router.post('/host/:id', upload.single('file'), hostModel);
 router.get('/categories', getCategories);
 router.get('/usecases', getUsecases);
 router.get('/seller/:sellerId', getModelsBySeller);

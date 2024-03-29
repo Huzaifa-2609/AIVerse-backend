@@ -99,15 +99,6 @@ const createDockerImage = async (req, res, imageName, modelId) => {
         let normalPath = dockerfilePath
         dockerfilePath = dockerfilePath + '/Dockerfile'
 
-
-        // const dockerfileContent =
-        //     `   FROM python:3.8
-        // COPY ./${req.file.filename} /app/
-        // WORKDIR /app/
-        // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-        // EXPOSE 8080
-        // RUN pip install Flask feature-engine==0.6.0 joblib==1.0.1 numpy==1.19.5 pandas==1.1.5 patsy==0.5.1 python-dateutil==2.8.1 scikit-learn==0.23.1 pytz==2021.1 scipy==1.5.4 six==1.16.0 threadpoolctl==2.1.0 statsmodels==0.12.2
-        // ENTRYPOINT ["python3", "predictor.py"]`
         // const dockerfileContent =
         //     `   FROM python:3.8
         // COPY ./${req.file.filename} /app/
@@ -116,14 +107,40 @@ const createDockerImage = async (req, res, imageName, modelId) => {
         // EXPOSE 8080
         // RUN pip install Flask
         // ENTRYPOINT ["python3", "api.py"]`
+        // const dockerfileContent =
+        //     `    FROM python:3.8
+        // COPY ./${req.file.filename} /app/
+        // WORKDIR /app/
+        // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        // EXPOSE 8080
+        // RUN pip install --no-cache-dir -r requirements.txt
+        // ENTRYPOINT ["python3", "api.py"]`
+        // const dockerfileContent =
+        //     `   
+        //     FROM tensorflow/tensorflow:latest-gpu
+        //     RUN apt-get update && apt-get install -y \
+        //     cuda-toolkit-11-0 && \
+        //     apt-get install -y --no-install-recommends \
+        //     libcudnn8=8.0.5.39-1+cuda11.0 && \
+        //     rm -rf /var/lib/apt/lists/*
+        //     ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.0/lib64:/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH \
+        //     PATH=/usr/local/cuda-11.0/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
+        //     COPY ./${req.file.filename} /app/
+        //     WORKDIR /app/
+        //     RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+        //     EXPOSE 8080
+        //     RUN pip install --no-cache-dir -r requirements.txt
+        //     ENTRYPOINT ["python3", "api.py"]`
         const dockerfileContent =
-            `   FROM python:3.8
-        COPY ./${req.file.filename} /app/
-        WORKDIR /app/
-        RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-        EXPOSE 8080
-        RUN pip install --no-cache-dir -r requirements.txt
-        ENTRYPOINT ["python3", "api.py"]`
+            `   
+            FROM nvcr.io/nvidia/tensorflow:21.04-tf2-py3
+            RUN apt-get update
+            COPY ./${req.file.filename} /app/
+            WORKDIR /app/
+            RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+            EXPOSE 8080
+            RUN pip install --no-cache-dir -r requirements.txt
+            ENTRYPOINT ["python3", "api.py"]`
 
         fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
             if (err) {

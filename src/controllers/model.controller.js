@@ -7,12 +7,6 @@ const { hostModelToAWS } = require('../controllers/modelhost.controller');
 exports.createModel = async (req, res) => {
   const { name, description, img, price, seller, category, usecase } = req.body;
 
-  // if (!req.file) {
-  //   return res.status(400).json({ isError: true, message: 'No files were uploaded.' });
-  // }
-  // console.log('The Uploaded File is : ', req.file);
-
-  // let model = null;
   try {
     let response;
     if (img) {
@@ -42,8 +36,7 @@ exports.createModel = async (req, res) => {
     const stripeModel = await modelService.createStripeModel(newModel, existingSeller);
     newModel.priceId = stripeModel.priceId;
     newModel.save();
-    // await hostModelToAWS(req, res, newModel);
-    res.status(201).json({ message: 'Model created successfully' });
+    res.status(201).json({ message: 'Model created successfully', model: newModel });
   } catch (error) {
     console.log(error);
     newModel?.remove();
@@ -98,6 +91,20 @@ exports.getCategories = async (req, res) => {
   try {
     let totalCategories = await Model.distinct('category');
     res.status(200).json({ categories: totalCategories });
+  } catch (error) {
+    res.status(500).send({ message: error.message });
+  }
+};
+exports.hostModel = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ isError: true, message: 'No files were uploaded.' });
+    }
+    console.log('The Uploaded File is : ', req.file);
+
+    let model = await Model.findById(req.params.id)
+    await hostModelToAWS(req, res, model);
+
   } catch (error) {
     res.status(500).send({ message: error.message });
   }
