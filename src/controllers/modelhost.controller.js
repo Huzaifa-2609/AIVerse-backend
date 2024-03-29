@@ -41,12 +41,12 @@ const updatModel = async (body, id) => {
     }
 }
 
-const hostModelToSageMaker = async (req, s3Filename, imageName, modelId) => {
+const hostModelToSageMaker = async (req, s3Filename, imageName, modelId,name) => {
     try {
         const sm = new AWS.SageMaker();
         let s3URL = `${process.env.S3_BUCKET_URI}${s3Filename}`
         let dockerImage = `${process.env.ECR_REPO_URI}${imageName}`
-        let modelName = req.body.name
+        let modelName = name
         const createModelParams = {
             ModelName: modelName,
             PrimaryContainer: {
@@ -91,7 +91,7 @@ const hostModelToSageMaker = async (req, s3Filename, imageName, modelId) => {
     }
 }
 
-const createDockerImage = async (req, res, imageName, modelId) => {
+const createDockerImage = async (req, res, imageName, modelId,name) => {
     try {
         const docker = new Docker();
         let dockerfilePath = `${req.file.destination}`; // Path to your Dockerfile template
@@ -210,7 +210,7 @@ const createDockerImage = async (req, res, imageName, modelId) => {
                                         console.log(`Push command: ${stdout}`);
                                         console.log('ImageName : ', imageName)
                                         await updatModel({ 'imagetag': imageName, 'ecrreponame': process.env.ECR_REPO_NAME }, modelId)
-                                        await hostModelToSageMaker(req, req.file.filename, imageName, modelId)
+                                        await hostModelToSageMaker(req, req.file.filename, imageName, modelId,name)
                                     }
                                     deleteFolder(normalPath)
                                 })
@@ -332,7 +332,7 @@ exports.hostModelToAWS = async (req, res, model) => {
 
         //build docker image
         let imageUri = `${req.file.filename}-${Date.now()}`
-        await createDockerImage(req, res, imageUri, modelId)
+        await createDockerImage(req, res, imageUri, modelId, model.name)
 
         res.status(200).json({ message: 'File uploaded and converted successfully.' });
 
