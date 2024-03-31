@@ -66,8 +66,8 @@ const createStripeCheckoutSession = async (user, plan) => {
     },
     mode: 'subscription',
     allow_promotion_codes: true,
-    success_url: `${app.appUrl}/pricing-success?success=true&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${app.appUrl}/pricing?canceled=true`,
+    success_url: `${app.appUrl}/seller?success=true&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${app.appUrl}/seller?canceled=true`,
   });
 
   return session.url;
@@ -104,8 +104,8 @@ const createConnectAccount = async (email) => {
 const createConnectLink = async (connectId) => {
   const accountLink = await stripe.accountLinks.create({
     account: connectId,
-    refresh_url: app.appUrl,
-    return_url: app.appUrl,
+    refresh_url: `${app.appUrl}/seller`,
+    return_url: `${app.appUrl}/seller`,
     type: 'account_onboarding',
   });
   return accountLink;
@@ -120,7 +120,7 @@ const createConnectLink = async (connectId) => {
 const getManageBillingPortalLink = async (stripeId) => {
   const session = await stripe.billingPortal.sessions.create({
     customer: stripeId,
-    return_url: `${app.appUrl}`,
+    return_url: `${app.appUrl}/seller`,
   });
 
   return session.url;
