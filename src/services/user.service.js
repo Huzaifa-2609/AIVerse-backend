@@ -60,9 +60,36 @@ const updateUserById = async (userId, updateBody) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
   if (updateBody.email && (await User.isEmailTaken(updateBody.email, userId))) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Email is already taken');
+  }
+  if (updateBody.name && (await User.isNameTaken(updateBody.name, userId))) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Name is already taken');
   }
   Object.assign(user, updateBody);
+  await user.save();
+  return user;
+};
+
+const updatePasswordById = async (userId, updateBody) => {
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+  }
+  const { password, newPassword, confirm } = updateBody;
+  const isPasswordMatch = await user.isPasswordMatch(password);
+  if (!isPasswordMatch) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Incorrect current password');
+  } else if (newPassword !== confirm) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'New password and confirm password must match');
+  } else if (password === newPassword) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'New password must be different from the current password');
+  } else if (newPassword.length < 8) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'password must be at least 8 characters long');
+  } else if (!newPassword.match(/\d/) || !newPassword.match(/[a-zA-Z]/)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'password must contain at least one letter and one number');
+  }
+  user.password = newPassword;
+  Object.assign(user);
   await user.save();
   return user;
 };
@@ -181,6 +208,7 @@ module.exports = {
   getUserById,
   getUserByEmail,
   updateUserById,
+  updatePasswordById,
   deleteUserById,
   createStripeCustomer,
   createUserCheckoutSession,

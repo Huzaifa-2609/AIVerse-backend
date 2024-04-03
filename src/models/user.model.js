@@ -74,6 +74,11 @@ userSchema.statics.isEmailTaken = async function (email, excludeUserId) {
   return !!user;
 };
 
+userSchema.statics.isNameTaken = async function (name, excludeUserId) {
+  const user = await this.findOne({ name, _id: { $ne: excludeUserId } });
+  return !!user;
+};
+
 /**
  * Check if password matches the user's password
  * @param {string} password
