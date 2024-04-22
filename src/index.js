@@ -4,11 +4,24 @@ const app = require('./app');
 const config = require('./config/config');
 const logger = require('./config/logger');
 const AWS = require('aws-sdk');
+const http = require('http')
+const socketio = require('socket.io');
 
 let server;
+let io;
 mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
   logger.info('Connected to MongoDB');
-  server = app.listen(config.port, () => {
+  server = http.createServer(app);
+
+  io = socketio(server);
+  io.on('connection', (socket) => {
+    console.log('New client connected : ', socket);
+    io.on('disconnect', () => {
+      console.log("New client disconnected");
+    })
+  });
+
+  server.listen(config.port, () => {
     logger.info(`Listening to port ${config.port}`);
   });
 });
@@ -53,3 +66,6 @@ process.on('SIGTERM', () => {
     server.close();
   }
 });
+
+
+module.exports = { io };
