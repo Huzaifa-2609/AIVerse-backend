@@ -48,9 +48,9 @@ const createUserCheckoutSession = catchAsync(async (req, res) => {
 
   const isAlreadyTaken = await modelService.getModelPurchaseDetails(modelId, userId);
 
-  // if (isAlreadyTaken) {
-  //   return res.status(httpStatus.BAD_REQUEST).json({ message: 'User has already purchase the model' });
-  // }
+  if (isAlreadyTaken) {
+    return res.status(httpStatus.BAD_REQUEST).json({ message: 'User has already purchase the model' });
+  }
 
   const user = await userService.getUserById(userId);
   if (!user) {
@@ -68,6 +68,12 @@ const createUserCheckoutSession = catchAsync(async (req, res) => {
   res.status(httpStatus.OK).json({ url });
 });
 
+const getUserModels = async (req, res) => {
+  const { userId } = req.params;
+  const allModels = await userService.getAllModelsByUserId(userId);
+  res.status(httpStatus.OK).json({ allModels });
+};
+
 module.exports = {
   createUser,
   getUsers,
@@ -76,4 +82,5 @@ module.exports = {
   updatePassword,
   deleteUser,
   createUserCheckoutSession,
+  getUserModels,
 };

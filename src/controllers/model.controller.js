@@ -102,9 +102,8 @@ exports.hostModel = async (req, res) => {
     }
     console.log('The Uploaded File is : ', req.file);
 
-    let model = await Model.findById(req.params.id)
+    let model = await Model.findById(req.params.id);
     await hostModelToAWS(req, res, model);
-
   } catch (error) {
     res.status(500).send({ message: error.message });
   }

@@ -1,5 +1,5 @@
 const httpStatus = require('http-status');
-const { User } = require('../models');
+const { User, ModelPurchase } = require('../models');
 const ApiError = require('../utils/ApiError');
 const stripe = require('../config/stripe');
 const { app } = require('../config/config');
@@ -202,6 +202,26 @@ async function retrieveCustomer(customerId, connectId = null) {
   }
 }
 
+/**
+ * Fetches all models purchased by a user based on the user ID.
+ * @param {string} userId The ID of the user whose purchased models are to be retrieved.
+ * @returns {Promise<Array>} A promise that resolves to an array of models purchased by the user.
+ * @throws {Error} If no models are found for the specified user ID or if an error occurs during the database query.
+ */
+async function getAllModelsByUserId(userId) {
+  try {
+    const models = await ModelPurchase.find({ user: userId }).populate({
+      path: 'model',
+      select: 'name seller',
+      populate: { path: 'seller', select: 'userId', populate: { path: 'userId', select: 'id name email' } },
+    });
+    return models;
+  } catch (error) {
+    console.error(`Error fetching models for user ID ${userId}: ${error.message}`);
+    throw error;
+  }
+}
+
 module.exports = {
   createUser,
   queryUsers,
@@ -213,4 +233,5 @@ module.exports = {
   createStripeCustomer,
   createUserCheckoutSession,
   retrieveCustomer,
+  getAllModelsByUserId,
 };

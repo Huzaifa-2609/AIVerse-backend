@@ -37,5 +37,8 @@ const modelPurchaseSchema = new mongoose.Schema(
 );
 
 const ModelPurchase = mongoose.model('ModelPurchase', modelPurchaseSchema);
+/**
+ * @typedef ModelPurchase
+ */
 
 module.exports = ModelPurchase;
