@@ -104,14 +104,14 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
     let normalPath = dockerfilePath;
     dockerfilePath = dockerfilePath + '/Dockerfile';
 
-    // const dockerfileContent =
-    //     `   FROM python:3.8
-    // COPY ./${req.file.filename} /app/
-    // WORKDIR /app/
-    // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-    // EXPOSE 8080
-    // RUN pip install Flask
-    // ENTRYPOINT ["python3", "api.py"]`
+    const dockerfileContent =
+      `   FROM python:3.8
+    COPY ./${req.file.filename} /app/
+    WORKDIR /app/
+    RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+    EXPOSE 8080
+    RUN pip install Flask
+    ENTRYPOINT ["python3", "api.py"]`
     // const dockerfileContent =
     //     `    FROM python:3.8
     // COPY ./${req.file.filename} /app/
@@ -136,15 +136,16 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
     //     EXPOSE 8080
     //     RUN pip install --no-cache-dir -r requirements.txt
     //     ENTRYPOINT ["python3", "api.py"]`
-    const dockerfileContent = `   
-            FROM nvcr.io/nvidia/tensorflow:21.04-tf2-py3
-            RUN apt-get update
-            COPY ./${req.file.filename} /app/
-            WORKDIR /app/
-            RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-            EXPOSE 8080
-            RUN pip install --no-cache-dir -r requirements.txt
-            ENTRYPOINT ["python3", "api.py"]`;
+    // const dockerfileContent = `   
+    //         FROM nvcr.io/nvidia/tensorflow:21.04-tf2-py3
+    //         RUN apt-get update
+    //         COPY ./${req.file.filename} /app/
+    //         WORKDIR /app/
+    //         RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+    //         EXPOSE 8080
+    //         RUN pip install --no-cache-dir -r requirements.txt
+    //         ENTRYPOINT ["python3", "api.py"]`;
+    // const dockerfileContent = req.body.dockerContent
 
     fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
       if (err) {
@@ -310,10 +311,10 @@ const deleteFolder = (path) => {
 };
 
 const emitSocket = (isError, modelStatus) => {
-  io.emit('model-status', {
-    isError,
-    modelStatus,
-  });
+  // io.emit('model-status', {
+  //   isError,
+  //   modelStatus,
+  // });
 };
 
 // const insertInModel = async (req) => {
