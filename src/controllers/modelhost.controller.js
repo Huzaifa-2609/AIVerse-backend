@@ -1,12 +1,14 @@
 const AWS = require('aws-sdk');
 const fs = require('fs');
+const path = require('path');
 const config = require('./../config/config');
 const Docker = require('dockerode');
 const { exec } = require('child_process');
 const Model = require('../models/model.model');
 const User = require('../models/user.model');
-const { deleteFromS3, deleteEcrIamge, deleteAllModelConfigFromSagemaker } = require('../Helper/awshelper');
+const { deleteFromS3, deleteEcrImage, deleteAllModelConfigFromSagemaker } = require('../Helper/awshelper');
 const { io } = require('../index');
+const os = require('os');
 
 const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
   try {
@@ -24,8 +26,8 @@ const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
-    //update status in db
-    await updatModel({ status: status }, modelId);
+    // Update status in db
+    await updateModel({ status: status }, modelId);
     emitSocket(status === 'Failed', status);
   } catch (error) {
     console.error('Error checking endpoint status:', error);
@@ -34,7 +36,7 @@ const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
   }
 };
 
-const updatModel = async (body, id) => {
+const updateModel = async (body, id) => {
   try {
     await Model.findByIdAndUpdate(id, body);
   } catch (error) {
@@ -66,9 +68,9 @@ const hostModelToSageMaker = async (req, s3Filename, imageName, modelId, name) =
           VariantName: 'default-variant',
           ModelName: modelName,
           InitialInstanceCount: 1,
-          // InstanceType: 'ml.t2.medium'
+          InstanceType: 'ml.t2.medium',
           // InstanceType: 'ml.p2.xlarge'
-          InstanceType: 'ml.p5.48xlarge',
+          // InstanceType: 'ml.p5.48xlarge',
         },
       ],
     };
@@ -82,7 +84,7 @@ const hostModelToSageMaker = async (req, s3Filename, imageName, modelId, name) =
     const endpointResult = await sm.createEndpoint(createEndpointParams).promise();
     console.log('Endpoint created:', endpointResult);
 
-    await updatModel({ endpoint: `${modelName}-endpoint` }, modelId);
+    await updateModel({ endpoint: `${modelName}-endpoint` }, modelId);
 
     // Wait for the endpoint to be in service
     await waitAndUpdateEndpointStatus(sm, `${modelName}-endpoint`, modelId);
@@ -90,7 +92,7 @@ const hostModelToSageMaker = async (req, s3Filename, imageName, modelId, name) =
     return endpointResult.EndpointArn;
   } catch (error) {
     console.error('Error deploying model:', error);
-    await updatModel({ status: 'Failed' }, modelId);
+    await updateModel({ status: 'Failed' }, modelId);
     emitSocket(true, 'Failed');
     throw error;
   }
@@ -98,59 +100,24 @@ const hostModelToSageMaker = async (req, s3Filename, imageName, modelId, name) =
 
 const createDockerImage = async (req, res, imageName, modelId, name) => {
   try {
-    const docker = new Docker();
-    let dockerfilePath = `${req.file.destination}`; // Path to your Dockerfile template
-
+    const docker = os.platform() === 'linux' ? new Docker({ socketPath: '/var/run/docker.sock' }) : new Docker();
+    let dockerfilePath = path.join(req.file.destination);
     let normalPath = dockerfilePath;
-    dockerfilePath = dockerfilePath + '/Dockerfile';
+    dockerfilePath = path.join(dockerfilePath, 'Dockerfile');
 
-    const dockerfileContent =
-      `   FROM python:3.8
-    COPY ./${req.file.filename} /app/
-    WORKDIR /app/
-    RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-    EXPOSE 8080
-    RUN pip install Flask
-    ENTRYPOINT ["python3", "api.py"]`
-    // const dockerfileContent =
-    //     `    FROM python:3.8
-    // COPY ./${req.file.filename} /app/
-    // WORKDIR /app/
-    // RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-    // EXPOSE 8080
-    // RUN pip install --no-cache-dir -r requirements.txt
-    // ENTRYPOINT ["python3", "api.py"]`
-    // const dockerfileContent =
-    //     `
-    //     FROM tensorflow/tensorflow:latest-gpu
-    //     RUN apt-get update && apt-get install -y \
-    //     cuda-toolkit-11-0 && \
-    //     apt-get install -y --no-install-recommends \
-    //     libcudnn8=8.0.5.39-1+cuda11.0 && \
-    //     rm -rf /var/lib/apt/lists/*
-    //     ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.0/lib64:/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH \
-    //     PATH=/usr/local/cuda-11.0/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
-    //     COPY ./${req.file.filename} /app/
-    //     WORKDIR /app/
-    //     RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-    //     EXPOSE 8080
-    //     RUN pip install --no-cache-dir -r requirements.txt
-    //     ENTRYPOINT ["python3", "api.py"]`
-    // const dockerfileContent = `   
-    //         FROM nvcr.io/nvidia/tensorflow:21.04-tf2-py3
-    //         RUN apt-get update
-    //         COPY ./${req.file.filename} /app/
-    //         WORKDIR /app/
-    //         RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-    //         EXPOSE 8080
-    //         RUN pip install --no-cache-dir -r requirements.txt
-    //         ENTRYPOINT ["python3", "api.py"]`;
-    // const dockerfileContent = req.body.dockerContent
+    const dockerfileContent = `FROM python:3.8 
+            RUN apt-get update
+            COPY ./${req.file.filename} /app/
+            WORKDIR /app/
+            RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+            EXPOSE 8080
+            RUN pip install --no-cache-dir -r requirements.txt
+            ENTRYPOINT ["python3", "api.py"]`;
 
     fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
       if (err) {
         console.log('err.....', err);
-        await updatModel({ status: 'Failed' }, modelId);
+        await updateModel({ status: 'Failed' }, modelId);
         deleteFolder(normalPath);
         emitSocket(true, 'Failed');
       }
@@ -164,7 +131,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
       async (err, stream) => {
         if (err) {
           console.error(err);
-          await updatModel({ status: 'Failed' }, modelId);
+          await updateModel({ status: 'Failed' }, modelId);
           emitSocket(true, 'Failed');
           return;
         }
@@ -174,7 +141,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
         async function onFinished(err, output) {
           if (err) {
             console.error(err);
-            await updatModel({ status: 'Failed' }, modelId);
+            await updateModel({ status: 'Failed' }, modelId);
             deleteFolder(normalPath);
             emitSocket(true, 'Failed');
           } else {
@@ -191,7 +158,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
             exec(process.env.ECR_LOGIN_COMMAND, async (error, stdout, stderr) => {
               if (error) {
                 console.error('Error getting login command:', error);
-                await updatModel({ status: 'Failed' }, modelId);
+                await updateModel({ status: 'Failed' }, modelId);
                 deleteFolder(normalPath);
                 emitSocket(true, 'Failed');
                 return;
@@ -202,7 +169,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
               exec(tagCommand, async (error, stdout, stderr) => {
                 if (error) {
                   console.error('Error getting tag command:', error);
-                  await updatModel({ status: 'Failed' }, modelId);
+                  await updateModel({ status: 'Failed' }, modelId);
                   deleteFolder(normalPath);
                   emitSocket(true, 'Failed');
                   return;
@@ -213,14 +180,14 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
                 exec(pushCommand, async (error, stdout, stderr) => {
                   if (error) {
                     console.error('Error getting Push command:', error);
-                    await updatModel({ status: 'Failed' }, modelId);
+                    await updateModel({ status: 'Failed' }, modelId);
                     deleteFolder(normalPath);
                     emitSocket(true, 'Failed');
                     return;
                   } else {
                     console.log(`Push command: ${stdout}`);
                     console.log('ImageName : ', imageName);
-                    await updatModel({ imagetag: imageName, ecrreponame: process.env.ECR_REPO_NAME }, modelId);
+                    await updateModel({ imagetag: imageName, ecrreponame: process.env.ECR_REPO_NAME }, modelId);
                     await hostModelToSageMaker(req, req.file.filename, imageName, modelId, name);
                   }
                   deleteFolder(normalPath);
@@ -237,7 +204,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
     );
   } catch (error) {
     console.log(error);
-    await updatModel({ status: 'Failed' }, modelId);
+    await updateModel({ status: 'Failed' }, modelId);
     emitSocket(true, 'Failed');
     return res.status(500).json({ message: error.message });
   }
@@ -252,7 +219,7 @@ const uploadToS3 = async (req, filePath, modelId) => {
       Body: fs.readFileSync(filePath),
     };
     let result = await s3.upload(uploadParams).promise();
-    await updatModel({ bucketname: result?.Bucket, bucketobjectkey: result?.Key }, modelId);
+    await updateModel({ bucketname: result?.Bucket, bucketobjectkey: result?.Key }, modelId);
     console.log('Successfully uploaded to s3', result);
   } catch (error) {
     console.log('Error in uploading s3 ', error);
@@ -265,7 +232,7 @@ const deleteS3 = async (modelId) => {
     const model = await Model.findById(modelId);
     if (model.bucketname && model.bucketobjectkey) {
       deleteFromS3(model.bucketname, model.bucketobjectkey);
-      console.log('successfully deleted from s3');
+      console.log('Successfully deleted from s3');
     }
   } catch (error) {
     console.log(error);
@@ -277,7 +244,7 @@ const deleteSagemakerConfigs = async (modelId) => {
     const model = await Model.findById(modelId);
     if (model.name) {
       deleteAllModelConfigFromSagemaker(model.name);
-      console.log('successfully deleted from sagemaker');
+      console.log('Successfully deleted from sagemaker');
     }
   } catch (error) {
     console.log(error);
@@ -288,8 +255,8 @@ const deleteImage = async (modelId) => {
   try {
     const model = await Model.findById(modelId);
     if (model.imagetag && model.ecrreponame) {
-      deleteEcrIamge(model.ecrreponame, model.imagetag);
-      console.log('successfully deleted from ecr');
+      deleteEcrImage(model.ecrreponame, model.imagetag);
+      console.log('Successfully deleted from ecr');
     }
   } catch (error) {
     console.log(error);
@@ -317,21 +284,6 @@ const emitSocket = (isError, modelStatus) => {
   // });
 };
 
-// const insertInModel = async (req) => {
-//     let obj = {
-//         'name': req.body.modelName
-//     }
-//     try {
-//         let model = await Model.create(obj)
-//         console.log('Model Is Created ', model)
-//         return model;
-//     } catch (e) {
-//         console.log('Error in creating model in db', e)
-//     }
-
-//     return {}
-// }
-
 exports.hostModelToAWS = async (req, res, model) => {
   try {
     if (!req.file) {
@@ -342,13 +294,13 @@ exports.hostModelToAWS = async (req, res, model) => {
     // Get the uploaded file path
     let filePath = req.file.path;
 
-    //save in db
+    // Save in db
     let modelId = model && model._id ? model._id : null;
 
-    // upload tar file to s3 bucket
+    // Upload tar file to s3 bucket
     await uploadToS3(req, filePath, modelId);
 
-    //build docker image
+    // Build docker image
     let imageUri = `${req.file.filename}-${Date.now()}`;
     await createDockerImage(req, res, imageUri, modelId, model.name);
 
