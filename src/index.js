@@ -4,24 +4,28 @@ const app = require('./app');
 const config = require('./config/config');
 const logger = require('./config/logger');
 const AWS = require('aws-sdk');
-const http = require('http')
+const http = require('http');
 const socketio = require('socket.io');
 
 let server;
 let io;
 mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
   logger.info('Connected to MongoDB');
-  server = http.createServer(app);
+  // server = http.createServer(app);
 
-  io = socketio(server);
-  io.on('connection', (socket) => {
-    console.log('New client connected : ', socket);
-    io.on('disconnect', () => {
-      console.log("New client disconnected");
-    })
-  });
+  // io = socketio(server);
+  // io.on('connection', (socket) => {
+  //   console.log('New client connected : ', socket);
+  //   io.on('disconnect', () => {
+  //     console.log('New client disconnected');
+  //   });
+  // });
 
-  server.listen(config.port, () => {
+  // server.listen(config.port, () => {
+  //   logger.info(`Listening to port ${config.port}`);
+  // });
+
+  server = app.listen(config.port, () => {
     logger.info(`Listening to port ${config.port}`);
   });
 });
@@ -38,7 +42,7 @@ AWS.config.update({
   // region: config.aws.region
   accessKeyId: process.env.AWS_ACCES_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.S3_REGION
+  region: process.env.S3_REGION,
 });
 
 const exitHandler = () => {
@@ -66,6 +70,5 @@ process.on('SIGTERM', () => {
     server.close();
   }
 });
-
 
 module.exports = { io };
