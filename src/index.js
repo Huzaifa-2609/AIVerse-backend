@@ -71,4 +71,4 @@ process.on('SIGTERM', () => {
   }
 });
 
-module.exports = { io };
+// module.exports = { io };
