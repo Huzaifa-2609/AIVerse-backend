@@ -4,8 +4,8 @@ const app = require('./app');
 const config = require('./config/config');
 const logger = require('./config/logger');
 const AWS = require('aws-sdk');
-const http = require('http');
-const socketio = require('socket.io');
+// const http = require('http');
+// const socketio = require('socket.io');
 
 let server;
 let io;

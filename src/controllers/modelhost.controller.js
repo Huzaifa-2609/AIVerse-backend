@@ -7,7 +7,7 @@ const { exec } = require('child_process');
 const Model = require('../models/model.model');
 const User = require('../models/user.model');
 const { deleteFromS3, deleteEcrImage, deleteAllModelConfigFromSagemaker } = require('../Helper/awshelper');
-const { io } = require('../index');
+// const { io } = require('../index');
 const os = require('os');
 
 const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
