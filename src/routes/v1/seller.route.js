@@ -10,6 +10,6 @@ router.post('/manage-billing', auth('manageBilling'), sellerController.getManage
 router.post('/send-verification-email', auth(), sellerController.sendSellerVerificationEmail);
 router.post('/verify-email', auth(), sellerController.sellerEmailVerification);
 router.get('/stats/:id', sellerController.getSellerDashboardStats);
-// router.post('/verify-email', auth(), sellerController.sellerEmailVerification);
+router.get('/revenue/:id', sellerController.getAnnualRevenue);
 
 module.exports = router;

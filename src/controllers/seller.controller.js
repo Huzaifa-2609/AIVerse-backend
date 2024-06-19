@@ -81,8 +81,22 @@ const getSellerDashboardStats = catchAsync(async (req, res) => {
     throw new Error('There is a mistake in the provided id');
   }
   const summary = await sellerService.getBalanceSummary(seller?.connectId);
+  const data = await sellerService.getSellerStatistics(id);
   return res.status(httpStatus.OK).json({
     ...summary,
+    ...data,
+  });
+});
+
+const getAnnualRevenue = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const seller = await sellerService.findSellerById(id);
+  if (!seller) {
+    throw new Error('There is a mistake in the provided id');
+  }
+  const data = await sellerService.getAnnualRevenue(seller?.connectId);
+  return res.status(httpStatus.OK).json({
+    data,
   });
 });
 
@@ -93,5 +107,6 @@ module.exports = {
   getManageBillingLink,
   sendSellerVerificationEmail,
   sellerEmailVerification,
+  getAnnualRevenue,
   getSellerDashboardStats,
 };

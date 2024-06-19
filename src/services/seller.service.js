@@ -3,8 +3,9 @@ const { tokenService, emailService } = require('.');
 const { app } = require('../config/config');
 const stripe = require('../config/stripe');
 const { tokenTypes } = require('../config/tokens');
-const { Seller, Token, SellerCustomers } = require('../models');
+const { Seller, Token, SellerCustomers, Model } = require('../models');
 const ApiError = require('../utils/ApiError');
+const { groupBy } = require('../utils/arrayUtils');
 
 /**
  * Find a seller object using id.
@@ -298,6 +299,11 @@ async function getBalance(stripeAccount) {
   }
 }
 
+/**
+ * Get the balance from stripe connect account
+ * @param {string} stripeAccount - connect account id for the seller
+ * @returns {Promise<object>} - A promise that resolves to the earnings for the current balance.
+ */
 const getBalanceSummary = async (stripeAccount) => {
   try {
     // Fetch balance
@@ -333,6 +339,59 @@ const getBalanceSummary = async (stripeAccount) => {
   }
 };
 
+/**
+ * Get the balance from stripe connect account
+ * @param {string} sellerId - id of the seller
+ * @returns {Promise<object>} - A promise that resolves to the earnings for the current stats.
+ */
+
+async function getSellerStatistics(sellerId) {
+  try {
+    //get the plan type of the seller
+    const seller = await Seller.findById(sellerId).populate('planId');
+
+    // Count the number of customers for the seller
+    const customerCountPromise = SellerCustomers.countDocuments({ sellerId: sellerId }).exec();
+
+    // Count the number of models hosted by the seller
+    const modelCountPromise = Model.countDocuments({ seller: sellerId }).exec();
+
+    // Wait for both counts to complete
+    const [customerCount, modelCount] = await Promise.all([customerCountPromise, modelCountPromise]);
+
+    return {
+      customerCount,
+      modelCount,
+      planType: seller?.planId?.name,
+    };
+  } catch (error) {
+    console.error('Error fetching seller statistics:', error);
+    throw error;
+  }
+}
+
+const getAnnualRevenue = async (connectId) => {
+  let month = 0;
+  perMonthRevenueList = [];
+  // const startDate = new Date();
+  const transactions = await fetchAllBalanceTransactions({}, { stripeAccount: connectId });
+  const perMonthTransactions = groupBy(transactions, ({ created }) => new Date(created * 1000).getMonth());
+
+  Object.keys(perMonthTransactions).forEach((item) => {
+    let totalEarnings = 0;
+
+    perMonthTransactions[item]?.forEach((txn) => {
+      if (txn.type === 'charge' && txn.amount > 0) {
+        totalEarnings += txn.amount - txn?.fee;
+      }
+    });
+
+    perMonthRevenueList.push({ [item]: totalEarnings });
+  });
+
+  return perMonthRevenueList;
+};
+
 module.exports = {
   createStripeCheckoutSession,
   createSeller,
@@ -350,4 +409,6 @@ module.exports = {
   getTotalEarnings,
   getBalance,
   getBalanceSummary,
+  getSellerStatistics,
+  getAnnualRevenue,
 };
