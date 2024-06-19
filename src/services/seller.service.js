@@ -206,6 +206,133 @@ async function createSellerCustomerIfNotExists(sellerId, customerId, stripeCusto
   }
 }
 
+/**
+ * Fetches all balance transactions with pagination.
+ * @param {Object} params - Parameters to filter transactions (e.g., date range).
+ * @param {Object} options - Options Object like stripeAccount, etc.
+ * @returns {Promise<Array>} - A promise that resolves to an array of balance transactions.
+ */
+async function fetchAllBalanceTransactions(params, options) {
+  let transactions = [];
+  let hasMore = true;
+  while (hasMore) {
+    const response = await stripe.balanceTransactions.list(
+      {
+        limit: 100,
+        ...params,
+      },
+      options
+    );
+
+    transactions = transactions.concat(response.data);
+    hasMore = response.has_more;
+  }
+  return transactions;
+}
+
+/**
+ * Calculates total earnings from all transactions.
+ *
+ * @param {string} params - connect account id for the seller
+ * @returns {Promise<number>} - A promise that resolves to the total earnings in the smallest currency unit (e.g., cents).
+ */
+async function getTotalEarnings(stripeAccount) {
+  try {
+    const transactions = await fetchAllBalanceTransactions({}, { stripeAccount });
+    let totalEarnings = 0;
+    transactions.forEach((transaction) => {
+      totalEarnings += Math.abs(transaction.amount);
+    });
+    const totalEarningsFormatted = totalEarnings / 100;
+    console.log(`Total Earnings: ${totalEarningsFormatted.toFixed(2)} ${transactions[0]?.currency}`);
+    return totalEarningsFormatted;
+  } catch (error) {
+    console.error('Error fetching total earnings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Calculates earnings for the current month.
+ * @param {string} stripeAccount - connect account0 id for the seller
+ * @returns {Promise<number>} - A promise that resolves to the earnings for the current month in the smallest currency unit (e.g., cents).
+ */
+async function getMonthlyEarnings(stripeAccount) {
+  try {
+    const startDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime() / 1000;
+    const endDate = Math.floor(new Date().getTime() / 1000);
+    const transactions = await fetchAllBalanceTransactions(
+      {
+        created: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      { stripeAccount }
+    );
+    let monthlyEarnings = 0;
+    transactions.forEach((transaction) => {
+      monthlyEarnings += transaction.amount;
+    });
+    const monthlyEarningsFormatted = monthlyEarnings / 100;
+    console.log(`This Month's Earnings: ${monthlyEarningsFormatted.toFixed(2)} ${transactions[0]?.currency}`);
+    return monthlyEarningsFormatted;
+  } catch (error) {
+    console.error('Error fetching monthly earnings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get the balance from stripe connect account
+ * @param {string} stripeAccount - connect account id for the seller
+ * @returns {Promise<object>} - A promise that resolves to the earnings for the current balance.
+ */
+async function getBalance(stripeAccount) {
+  try {
+    const balance = await stripe.balance.retrieve({ stripeAccount });
+    return balance;
+  } catch (error) {
+    console.error('Error fetching balance:', error);
+    throw error;
+  }
+}
+
+const getBalanceSummary = async (stripeAccount) => {
+  try {
+    // Fetch balance
+    const balance = await getBalance(stripeAccount);
+
+    // Fetch balance transactions
+    const balanceTransactions = await fetchAllBalanceTransactions({}, { stripeAccount });
+
+    // Calculate total earnings and total withdrawn
+    let totalEarnings = 0;
+    let totalWithdrawn = 0;
+    let platformFee = 0;
+
+    balanceTransactions.forEach((txn) => {
+      platformFee += txn.fee;
+      if (txn.type === 'charge' && txn.amount > 0) {
+        totalEarnings += txn.amount;
+      } else if (txn.type === 'payout' && txn.amount < 0) {
+        totalWithdrawn += Math.abs(txn.amount);
+      }
+    });
+
+    // Convert amounts from cents to dollar
+    totalEarnings = totalEarnings / 100;
+    totalWithdrawn = totalWithdrawn / 100;
+    platformFee = platformFee / 100;
+
+    const available = balance.available.reduce((sum, bal) => sum + bal.amount, 0) / 100;
+
+    return { totalEarnings, totalWithdrawn, available, platformFee };
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   createStripeCheckoutSession,
   createSeller,
@@ -218,4 +345,9 @@ module.exports = {
   findSellerByUserId,
   findSellerCustomer,
   createSellerCustomerIfNotExists,
+  fetchAllBalanceTransactions,
+  getMonthlyEarnings,
+  getTotalEarnings,
+  getBalance,
+  getBalanceSummary,
 };

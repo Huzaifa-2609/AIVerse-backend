@@ -74,6 +74,18 @@ const sellerEmailVerification = catchAsync(async (req, res) => {
   res.status(httpStatus.NO_CONTENT).send();
 });
 
+const getSellerDashboardStats = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const seller = await sellerService.findSellerById(id);
+  if (!seller) {
+    throw new Error('There is a mistake in the provided id');
+  }
+  const summary = await sellerService.getBalanceSummary(seller?.connectId);
+  return res.status(httpStatus.OK).json({
+    ...summary,
+  });
+});
+
 module.exports = {
   selectPlan,
   createSeller,
@@ -81,4 +93,5 @@ module.exports = {
   getManageBillingLink,
   sendSellerVerificationEmail,
   sellerEmailVerification,
+  getSellerDashboardStats,
 };
