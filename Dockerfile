@@ -1,13 +1,33 @@
+# Use the node:18-alpine image as the base
 FROM node:18-alpine
 
+# Set the working directory
 WORKDIR /app
 
+# Copy package.json and install dependencies
 COPY package.json .
-
 RUN npm install
 
+# Copy the rest of the application code
 COPY . .
 
-EXPOSE 8000
+# Install dependencies needed for AWS CLI and Docker
+RUN apk --no-cache add \
+    curl \
+    unzip \
+    py3-pip \
+    openrc \
+    docker \
+    shadow
 
-CMD [ "npm","start" ]
+# Install AWS CLI using pip
+RUN pip install awscli
+
+# Enable Docker service
+RUN rc-update add docker boot
+
+# Expose port 5000
+EXPOSE 5000
+
+# Start the application
+CMD ["npm","run", "prod"]
