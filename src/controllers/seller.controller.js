@@ -100,6 +100,22 @@ const getAnnualRevenue = catchAsync(async (req, res) => {
   });
 });
 
+const getAnnualRevenueModel = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const models = await sellerService.getAllModels(id);
+  const revenue = await sellerService.getRevenueModelByCustomersAndSellerId(models);
+  // const data = await sellerService.getAnnualRevenue(seller?.connectId);
+  return res.status(httpStatus.OK).json({
+    revenue,
+  });
+});
+
+const getSellerAllCustomers = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const customers = await sellerService.getAllSellerCustomersWithModels(id);
+  return res.status(httpStatus.OK).json(customers);
+});
+
 module.exports = {
   selectPlan,
   createSeller,
@@ -109,4 +125,6 @@ module.exports = {
   sellerEmailVerification,
   getAnnualRevenue,
   getSellerDashboardStats,
+  getAnnualRevenueModel,
+  getSellerAllCustomers,
 };
