@@ -86,6 +86,20 @@ exports.updateModel = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.deleteModel = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const model = await Model.findByIdAndDelete(id);
+
+    if (!model) {
+      return res.status(404).json({ message: 'Model not found' });
+    }
+
+    res.status(200).json({ message: 'Model deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 exports.getCategories = async (req, res) => {
   try {
@@ -131,7 +145,7 @@ exports.getModelByName = async (req, res) => {
 exports.getModels = async (req, res) => {
   try {
     const { currentPage = 1, category, usecase, q } = req.query;
-    const perPage = 12;
+    const perPage = 8;
     let query = {};
 
     if (category) {
@@ -151,17 +165,15 @@ exports.getModels = async (req, res) => {
       query = { ...query, ...searchQuery };
     }
 
+    const offset = (currentPage - 1) * perPage;
+
     const totalCount = await Model.countDocuments(query);
     const totalPages = Math.ceil(totalCount / perPage);
-    const models = await Model.find(query)
-      .limit(perPage)
-      .skip((currentPage - 1) * perPage);
+    const models = await Model.find(query).limit(perPage).skip(offset).sort({ createdAt: -1 });
 
     res.status(200).json({
       models,
-      currentPage,
       totalPages,
-      totalCount,
     });
   } catch (error) {
     res.status(500).send({ message: error.message });
@@ -171,17 +183,22 @@ exports.getModels = async (req, res) => {
 exports.getModelsBySeller = async (req, res) => {
   try {
     const { sellerId } = req.params;
-    const { modelName } = req.query;
+    const { modelName, page = 1 } = req.query;
+    const perPage = 3;
 
     const query = { seller: sellerId };
+
+    const offset = (page - 1) * perPage;
 
     if (modelName) {
       query.name = { $regex: new RegExp(modelName, 'i') };
     }
 
-    const models = await Model.find(query).limit(3);
+    const totalModels = await Model.countDocuments(query);
+    const totalPages = Math.ceil(totalModels / perPage);
 
-    res.status(200).json({ models });
+    const models = await Model.find(query).skip(offset).limit(perPage).sort({ createdAt: -1 });
+    res.status(200).json({ models, totalPages });
   } catch (error) {
     res.status(500).send({ message: error.message });
   }
