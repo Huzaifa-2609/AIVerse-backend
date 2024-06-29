@@ -104,14 +104,15 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
     let normalPath = dockerfilePath;
     dockerfilePath = path.join(dockerfilePath, 'Dockerfile');
 
-    const dockerfileContent = `FROM python:3.8 
-            RUN apt-get update
-            COPY ./${req.file.filename} /app/
-            WORKDIR /app/
-            RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-            EXPOSE 8080
-            RUN pip install --no-cache-dir -r requirements.txt
-            ENTRYPOINT ["python3", "api.py"]`;
+    // const dockerfileContent = `FROM python:3.8 
+    //         RUN apt-get update
+    //         COPY ./${req.file.filename} /app/
+    //         WORKDIR /app/
+    //         RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
+    //         EXPOSE 8080
+    //         RUN pip install --no-cache-dir -r requirements.txt
+    //         ENTRYPOINT ["python3", "api.py"]`;
+    const dockerfileContent = req.body.dockerContent;
 
     fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
       if (err) {

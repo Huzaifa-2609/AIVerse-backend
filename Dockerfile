@@ -22,9 +22,13 @@ RUN apk --no-cache add \
     python3
 
 # Install AWS CLI using pip
-RUN pip3 install awscli --upgrade --user
+RUN pip3 install awscli --upgrade --user --break-system-packages
 
-RUN export PATH=$PATH:~/.local/bin
+# Add ~/.local/bin to PATH
+ENV PATH=$PATH:/root/.local/bin
+
+# Create a symlink to the aws binary in /usr/local/bin
+RUN ln -s /root/.local/bin/aws /usr/local/bin/aws
 
 # Enable Docker service
 RUN rc-update add docker boot
@@ -33,4 +37,4 @@ RUN rc-update add docker boot
 EXPOSE 5000
 
 # Start the application
-CMD ["npm","run", "prod"]
+CMD ["npm","run", "dev"]
