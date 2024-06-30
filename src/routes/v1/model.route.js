@@ -46,7 +46,7 @@ router.get('/', getModels);
 router.put('/update/:id', updateModel);
 router.delete('/delete/:id', deleteModel);
 router.post('/create', createModel);
-router.post('/host/:id', upload.single('file'), hostModel);
+router.post('/host/:id', auth(), upload.single('file'), hostModel);
 router.get('/categories', getCategories);
 router.get('/usecases', getUsecases);
 router.get('/seller/:sellerId', getModelsBySeller);

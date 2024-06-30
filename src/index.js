@@ -6,10 +6,10 @@ const logger = require('./config/logger');
 const AWS = require('aws-sdk');
 const http = require('http');
 const socketIO = require('socket.io');
+const socketinstance = require('./utils/socketio')
 
 let server;
-let io;
-var connections = {}
+
 mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
   logger.info('Connected to MongoDB');
 
@@ -20,21 +20,27 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
       origin: "*"
     }
   });
-
+  socketinstance.setIO(io);
   // Socket.IO connection event
   io.on('connection', (socket) => {
-    console.log('New client connected', socket.id)
+    console.log('New client connected', socket.id);
 
-    socket.on('disconnect', () => {
-      logger.info('Client disconnected');
-    });
+    // socket.on('disconnect', () => {
+    //   console.log('Client disconnected');
+    //   // Remove the disconnected client from connections
+    //   for (const [userId, socketId] of Object.entries(socketinstance.getConnections())) {
+    //     if (socketId === socket.id) {
+    //       socketinstance.deleteConnections(userId)
+    //       break;
+    //     }
+    //   }
+    // });
 
     // Add more socket event listeners here
     socket.on('userdetails', ({ id }) => {
-      connections[id] = socket.id;
+      socketinstance.setConnections(id, socket.id)
     });
   });
-
   server = httpServer.listen(config.port, () => {
     logger.info(`Listening to port ${config.port}`);
   });
@@ -78,6 +84,11 @@ process.on('SIGTERM', () => {
   }
 });
 
-module.exports = {
-  io, connections
+const getConnections = () => {
+  return connections
 }
+const getIO = () => {
+  return io
+}
+
+module.exports = { getConnections, getIO }

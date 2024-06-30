@@ -8,7 +8,7 @@ const Model = require('../models/model.model');
 const User = require('../models/user.model');
 const { deleteFromS3, deleteEcrImage, deleteAllModelConfigFromSagemaker } = require('../Helper/awshelper');
 const os = require('os');
-const { io, connections } = require('./../index.js')
+const SocketIo = require('./../utils/socketio.js')
 
 const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
   try {
@@ -106,7 +106,8 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
     dockerfilePath = path.join(dockerfilePath, 'Dockerfile');
 
     let dockerfileContent = req.body.dockerContent;
-    dockerfileContent.replaceAll('${req.file.filename}', `${req.file.filename}`)
+    dockerfileContent = dockerfileContent.replaceAll('${req.file.filename}', `${req.file.filename}`)
+    console.log(dockerfileContent)
 
     fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
       if (err) {
@@ -272,8 +273,9 @@ const deleteFolder = (path) => {
 };
 
 const emitSocket = async (req, id) => {
-  console.log("req.user : ", req.user)
   if (req.user && req.user.id) {
+    let connections = SocketIo.getConnections()
+    let io = SocketIo.getIO();
     let socketid = connections[req.user.id]
     let model = await Model.findById(id);
     io.to(socketid).emit('reportmodelstatus', model)
@@ -290,7 +292,6 @@ exports.hostModelToAWS = async (req, res, model) => {
     let filePath = req.file.path;
 
     // Save in db
-    emitSocket(req, model._id);
     let modelId = model && model._id ? model._id : null;
 
     // Upload tar file to s3 bucket
