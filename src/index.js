@@ -4,11 +4,38 @@ const app = require('./app');
 const config = require('./config/config');
 const logger = require('./config/logger');
 const AWS = require('aws-sdk');
+const http = require('http');
+const socketIO = require('socket.io');
 
 let server;
+let io;
+var connections = {}
 mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
   logger.info('Connected to MongoDB');
-  server = app.listen(config.port, () => {
+
+  // Create HTTP server and initialize Socket.IO
+  const httpServer = http.createServer(app);
+  io = socketIO(httpServer, {
+    cors: {
+      origin: "*"
+    }
+  });
+
+  // Socket.IO connection event
+  io.on('connection', (socket) => {
+    console.log('New client connected', socket.id)
+
+    socket.on('disconnect', () => {
+      logger.info('Client disconnected');
+    });
+
+    // Add more socket event listeners here
+    socket.on('userdetails', ({ id }) => {
+      connections[id] = socket.id;
+    });
+  });
+
+  server = httpServer.listen(config.port, () => {
     logger.info(`Listening to port ${config.port}`);
   });
 });
@@ -51,3 +78,6 @@ process.on('SIGTERM', () => {
   }
 });
 
+module.exports = {
+  io, connections
+}

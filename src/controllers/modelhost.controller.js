@@ -8,6 +8,7 @@ const Model = require('../models/model.model');
 const User = require('../models/user.model');
 const { deleteFromS3, deleteEcrImage, deleteAllModelConfigFromSagemaker } = require('../Helper/awshelper');
 const os = require('os');
+const { io, connections } = require('./../index.js')
 
 const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
   try {
@@ -27,10 +28,10 @@ const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
 
     // Update status in db
     await updateModel({ status: status }, modelId);
-    emitSocket(status === 'Failed', status);
+    emitSocket(req, modelId);
   } catch (error) {
     console.error('Error checking endpoint status:', error);
-    emitSocket(true, 'Failed');
+    emitSocket(req, modelId);
     throw error;
   }
 };
@@ -86,13 +87,13 @@ const hostModelToSageMaker = async (req, s3Filename, imageName, modelId, name) =
     await updateModel({ endpoint: `${modelName}-endpoint` }, modelId);
 
     // Wait for the endpoint to be in service
-    await waitAndUpdateEndpointStatus(sm, `${modelName}-endpoint`, modelId);
+    await waitAndUpdateEndpointStatus(req, sm, `${modelName}-endpoint`, modelId);
 
     return endpointResult.EndpointArn;
   } catch (error) {
     console.error('Error deploying model:', error);
     await updateModel({ status: 'Failed' }, modelId);
-    emitSocket(true, 'Failed');
+    emitSocket(req, modelId);
     throw error;
   }
 };
@@ -104,22 +105,15 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
     let normalPath = dockerfilePath;
     dockerfilePath = path.join(dockerfilePath, 'Dockerfile');
 
-    // const dockerfileContent = `FROM python:3.8 
-    //         RUN apt-get update
-    //         COPY ./${req.file.filename} /app/
-    //         WORKDIR /app/
-    //         RUN tar -xvf ${req.file.filename} && rm ${req.file.filename}
-    //         EXPOSE 8080
-    //         RUN pip install --no-cache-dir -r requirements.txt
-    //         ENTRYPOINT ["python3", "api.py"]`;
-    const dockerfileContent = req.body.dockerContent;
+    let dockerfileContent = req.body.dockerContent;
+    dockerfileContent.replaceAll('${req.file.filename}', `${req.file.filename}`)
 
     fs.writeFile(dockerfilePath, dockerfileContent, async function (err) {
       if (err) {
         console.log('err.....', err);
         await updateModel({ status: 'Failed' }, modelId);
         deleteFolder(normalPath);
-        emitSocket(true, 'Failed');
+        emitSocket(req, modelId);
       }
       console.log('Saved!');
     });
@@ -132,7 +126,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
         if (err) {
           console.error(err);
           await updateModel({ status: 'Failed' }, modelId);
-          emitSocket(true, 'Failed');
+          emitSocket(req, modelId);
           return;
         }
 
@@ -143,7 +137,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
             console.error(err);
             await updateModel({ status: 'Failed' }, modelId);
             deleteFolder(normalPath);
-            emitSocket(true, 'Failed');
+            emitSocket(req, modelId);
           } else {
             console.log('Image built successfully:', output);
 
@@ -160,7 +154,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
                 console.error('Error getting login command:', error);
                 await updateModel({ status: 'Failed' }, modelId);
                 deleteFolder(normalPath);
-                emitSocket(true, 'Failed');
+                emitSocket(req, modelId);
                 return;
               }
               console.log(`Login command: ${stdout}`);
@@ -171,7 +165,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
                   console.error('Error getting tag command:', error);
                   await updateModel({ status: 'Failed' }, modelId);
                   deleteFolder(normalPath);
-                  emitSocket(true, 'Failed');
+                  emitSocket(req, modelId);
                   return;
                 }
                 console.log(`Tag command: ${stdout}`);
@@ -182,7 +176,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
                     console.error('Error getting Push command:', error);
                     await updateModel({ status: 'Failed' }, modelId);
                     deleteFolder(normalPath);
-                    emitSocket(true, 'Failed');
+                    emitSocket(req, modelId);
                     return;
                   } else {
                     console.log(`Push command: ${stdout}`);
@@ -205,7 +199,7 @@ const createDockerImage = async (req, res, imageName, modelId, name) => {
   } catch (error) {
     console.log(error);
     await updateModel({ status: 'Failed' }, modelId);
-    emitSocket(true, 'Failed');
+    emitSocket(req, modelId);
     return res.status(500).json({ message: error.message });
   }
 };
@@ -223,7 +217,7 @@ const uploadToS3 = async (req, filePath, modelId) => {
     console.log('Successfully uploaded to s3', result);
   } catch (error) {
     console.log('Error in uploading s3 ', error);
-    emitSocket(true, 'Failed');
+    emitSocket(req, modelId);
   }
 };
 
@@ -277,11 +271,13 @@ const deleteFolder = (path) => {
   });
 };
 
-const emitSocket = (isError, modelStatus) => {
-  // io.emit('model-status', {
-  //   isError,
-  //   modelStatus,
-  // });
+const emitSocket = async (req, id) => {
+  console.log("req.user : ", req.user)
+  if (req.user && req.user.id) {
+    let socketid = connections[req.user.id]
+    let model = await Model.findById(id);
+    io.to(socketid).emit('reportmodelstatus', model)
+  }
 };
 
 exports.hostModelToAWS = async (req, res, model) => {
@@ -290,11 +286,11 @@ exports.hostModelToAWS = async (req, res, model) => {
       return res.status(400).json({ isError: true, message: 'No files were uploaded.' });
     }
     console.log('The Uploaded File is : ', req.file);
-
     // Get the uploaded file path
     let filePath = req.file.path;
 
     // Save in db
+    emitSocket(req, model._id);
     let modelId = model && model._id ? model._id : null;
 
     // Upload tar file to s3 bucket
