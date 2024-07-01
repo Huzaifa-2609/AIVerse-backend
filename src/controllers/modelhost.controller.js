@@ -10,7 +10,7 @@ const { deleteFromS3, deleteEcrImage, deleteAllModelConfigFromSagemaker } = requ
 const os = require('os');
 const SocketIo = require('./../utils/socketio.js')
 
-const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId) => {
+const waitAndUpdateEndpointStatus = async (sm, endpointName, modelId, req) => {
   try {
     let status = 'Creating';
     while (status === 'Creating') {
@@ -87,7 +87,7 @@ const hostModelToSageMaker = async (req, s3Filename, imageName, modelId, name) =
     await updateModel({ endpoint: `${modelName}-endpoint` }, modelId);
 
     // Wait for the endpoint to be in service
-    await waitAndUpdateEndpointStatus(req, sm, `${modelName}-endpoint`, modelId);
+    await waitAndUpdateEndpointStatus(sm, `${modelName}-endpoint`, modelId, req);
 
     return endpointResult.EndpointArn;
   } catch (error) {
