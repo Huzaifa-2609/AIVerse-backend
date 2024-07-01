@@ -175,8 +175,8 @@ const createUserCheckoutSession = async (model, user, sellerCustomer) => {
       },
       mode: 'subscription',
       allow_promotion_codes: true,
-      success_url: `${app.appUrl}/marketplace?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${app.appUrl}/pricing?canceled=true`,
+      success_url: `${app.appUrl}/user/purchased-models?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${app.appUrl}/marketplace?canceled=true`,
     },
     {
       stripeAccount: connectId,

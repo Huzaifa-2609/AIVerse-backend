@@ -17,6 +17,10 @@ const modelPurchaseSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    cancellation_reason: {
+      type: String,
+      default: null,
+    },
     isActive: {
       type: Boolean,
       required: true,
