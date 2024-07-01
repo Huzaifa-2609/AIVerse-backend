@@ -175,8 +175,8 @@ const createUserCheckoutSession = async (model, user, sellerCustomer) => {
       },
       mode: 'subscription',
       allow_promotion_codes: true,
-      success_url: `${app.appUrl}/marketplace?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${app.appUrl}/pricing?canceled=true`,
+      success_url: `${app.appUrl}/user/purchased-models?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${app.appUrl}/marketplace?canceled=true`,
     },
     {
       stripeAccount: connectId,
@@ -222,6 +222,31 @@ async function getAllModelsByUserId(userId) {
   }
 }
 
+/**
+ * Fetches all charges initiated by the user based on the stripe customer ID.
+ * @param {string} customer The stripe ID of the user whose initiated charges are to be retrieved.
+ * @param {string} stripeAccount The stripe account of the seller.
+ * @returns {Promise<Array>} A promise that resolves to an array of charges initiated by the user.
+ * @throws {Error} If no charges are found for the specified user ID or if an error occurs during the database query.
+ */
+async function getAllChargesByCustomer(customer, stripeAccount) {
+  try {
+    const charges = await stripe.charges.list(
+      {
+        limit: 100,
+        customer,
+      },
+      {
+        stripeAccount,
+      }
+    );
+    return charges;
+  } catch (error) {
+    console.error(`Error fetching charges for customer ID ${customer}: ${error.message}`);
+    throw error;
+  }
+}
+
 module.exports = {
   createUser,
   queryUsers,
@@ -234,4 +259,5 @@ module.exports = {
   createUserCheckoutSession,
   retrieveCustomer,
   getAllModelsByUserId,
+  getAllChargesByCustomer,
 };

@@ -34,7 +34,7 @@ const updatePlan = async (data) => {
     }
 
     // Update seller with new plan
-    await Seller.findByIdAndUpdate(seller._id, { isSubscriptionActive: true, planId: plan._id });
+    await Seller.findByIdAndUpdate(seller._id, { isSubscriptionActive: true, planId: plan._id, cancellation_reason: null });
     await user.updateOne({ isDeveloper: true });
     // Check if consumption entry exists for the seller
     let consumption = await Consumptions.findOne({ sellerId: seller._id });
@@ -71,7 +71,11 @@ const deletePlan = async (data) => {
     }
 
     // Update seller to remove planId and set isSubscriptionActive to false
-    await seller.updateOne({ planId: null, isSubscriptionActive: false });
+    await seller.updateOne({
+      planId: null,
+      isSubscriptionActive: false,
+      cancellation_reason: data.cancellation_details?.reason,
+    });
   } catch (error) {
     console.error('Error deleting plan:', error);
     throw error; // Re-throw the error to be handled by the caller
@@ -150,7 +154,11 @@ const deleteUserPlan = async (data) => {
       return null;
     }
 
-    await ModelPurchase.updateOne({ user: user.customerId, model: model.id }, { isActive: false });
+    await ModelPurchase.updateOne(
+      { user: user.customerId, model: model.id },
+      { isActive: false, cancellation_reason: data.cancellation_details?.reason }
+    );
+    return;
   } catch (error) {
     console.error('Error deleting plan:', error);
     throw error;

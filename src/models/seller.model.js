@@ -12,6 +12,11 @@ const sellerSchema = new mongoose.Schema(
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'Plan',
     },
+    cancellation_reason: {
+      type: String,
+      default: null,
+    },
+
     isSubscriptionActive: {
       type: Boolean,
       required: true,

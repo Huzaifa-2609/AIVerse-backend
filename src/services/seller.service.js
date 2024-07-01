@@ -1,10 +1,12 @@
 const httpStatus = require('http-status');
-const { tokenService, emailService } = require('.');
+const { tokenService, emailService, userService, sellerService } = require('.');
 const { app } = require('../config/config');
 const stripe = require('../config/stripe');
 const { tokenTypes } = require('../config/tokens');
-const { Seller, Token, SellerCustomers } = require('../models');
+const { Seller, Token, SellerCustomers, Model, ModelPurchase } = require('../models');
 const ApiError = require('../utils/ApiError');
+const { groupBy } = require('../utils/arrayUtils');
+const mongoose = require('mongoose');
 
 /**
  * Find a seller object using id.
@@ -206,6 +208,353 @@ async function createSellerCustomerIfNotExists(sellerId, customerId, stripeCusto
   }
 }
 
+/**
+ * Fetches all balance transactions with pagination.
+ * @param {Object} params - Parameters to filter transactions (e.g., date range).
+ * @param {Object} options - Options Object like stripeAccount, etc.
+ * @returns {Promise<Array>} - A promise that resolves to an array of balance transactions.
+ */
+async function fetchAllBalanceTransactions(params, options) {
+  let transactions = [];
+  let hasMore = true;
+  while (hasMore) {
+    const response = await stripe.balanceTransactions.list(
+      {
+        limit: 100,
+        ...params,
+      },
+      options
+    );
+
+    transactions = transactions.concat(response.data);
+    hasMore = response.has_more;
+  }
+  return transactions;
+}
+
+/**
+ * Calculates total earnings from all transactions.
+ *
+ * @param {string} params - connect account id for the seller
+ * @returns {Promise<number>} - A promise that resolves to the total earnings in the smallest currency unit (e.g., cents).
+ */
+async function getTotalEarnings(stripeAccount) {
+  try {
+    const transactions = await fetchAllBalanceTransactions({}, { stripeAccount });
+    let totalEarnings = 0;
+    transactions.forEach((transaction) => {
+      totalEarnings += Math.abs(transaction.amount);
+    });
+    const totalEarningsFormatted = totalEarnings / 100;
+    console.log(`Total Earnings: ${totalEarningsFormatted.toFixed(2)} ${transactions[0]?.currency}`);
+    return totalEarningsFormatted;
+  } catch (error) {
+    console.error('Error fetching total earnings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Calculates earnings for the current month.
+ * @param {string} stripeAccount - connect account0 id for the seller
+ * @returns {Promise<number>} - A promise that resolves to the earnings for the current month in the smallest currency unit (e.g., cents).
+ */
+async function getMonthlyEarnings(stripeAccount) {
+  try {
+    const startDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime() / 1000;
+    const endDate = Math.floor(new Date().getTime() / 1000);
+    const transactions = await fetchAllBalanceTransactions(
+      {
+        created: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      { stripeAccount }
+    );
+    let monthlyEarnings = 0;
+    transactions.forEach((transaction) => {
+      monthlyEarnings += transaction.amount;
+    });
+    const monthlyEarningsFormatted = monthlyEarnings / 100;
+    console.log(`This Month's Earnings: ${monthlyEarningsFormatted.toFixed(2)} ${transactions[0]?.currency}`);
+    return monthlyEarningsFormatted;
+  } catch (error) {
+    console.error('Error fetching monthly earnings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get the balance from stripe connect account
+ * @param {string} stripeAccount - connect account id for the seller
+ * @returns {Promise<object>} - A promise that resolves to the earnings for the current balance.
+ */
+async function getBalance(stripeAccount) {
+  try {
+    const balance = await stripe.balance.retrieve({ stripeAccount });
+    return balance;
+  } catch (error) {
+    console.error('Error fetching balance:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get the balance from stripe connect account
+ * @param {string} stripeAccount - connect account id for the seller
+ * @returns {Promise<object>} - A promise that resolves to the earnings for the current balance.
+ */
+const getBalanceSummary = async (stripeAccount) => {
+  try {
+    // Fetch balance
+    const balance = await getBalance(stripeAccount);
+
+    // Fetch balance transactions
+    const balanceTransactions = await fetchAllBalanceTransactions({}, { stripeAccount });
+
+    // Calculate total earnings and total withdrawn
+    let totalEarnings = 0;
+    let totalWithdrawn = 0;
+    let platformFee = 0;
+
+    balanceTransactions.forEach((txn) => {
+      platformFee += txn.fee;
+      if (txn.type === 'charge' && txn.amount > 0) {
+        totalEarnings += txn.amount;
+      } else if (txn.type === 'payout' && txn.amount < 0) {
+        totalWithdrawn += Math.abs(txn.amount);
+      }
+    });
+
+    // Convert amounts from cents to dollar
+    totalEarnings = totalEarnings / 100;
+    totalWithdrawn = totalWithdrawn / 100;
+    platformFee = platformFee / 100;
+
+    const available = balance.available.reduce((sum, bal) => sum + bal.amount, 0) / 100;
+
+    return { totalEarnings, totalWithdrawn, available, platformFee };
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Get the balance from stripe connect account
+ * @param {string} sellerId - id of the seller
+ * @returns {Promise<object>} - A promise that resolves to the earnings for the current stats.
+ */
+
+async function getSellerStatistics(sellerId) {
+  try {
+    //get the plan type of the seller
+    const seller = await Seller.findById(sellerId).populate('planId');
+
+    // Count the number of customers for the seller
+    const customerCountPromise = SellerCustomers.countDocuments({ sellerId: sellerId }).exec();
+
+    // Count the number of models hosted by the seller
+    const modelCountPromise = Model.countDocuments({ seller: sellerId }).exec();
+
+    // Wait for both counts to complete
+    const [customerCount, modelCount] = await Promise.all([customerCountPromise, modelCountPromise]);
+
+    return {
+      customerCount,
+      modelCount,
+      planType: seller?.planId?.name,
+    };
+  } catch (error) {
+    console.error('Error fetching seller statistics:', error);
+    throw error;
+  }
+}
+
+const getAnnualRevenue = async (connectId) => {
+  let perMonthRevenueList = [];
+  let revenueMonths = [];
+  // const startDate = new Date();
+  const transactions = await fetchAllBalanceTransactions({}, { stripeAccount: connectId });
+  const perMonthTransactions = groupBy(
+    transactions,
+    ({ created }) =>
+      `${String(new Date(created * 1000).getMonth()).padStart(2, '0')}-${new Date(created * 1000).getFullYear()}`
+  );
+
+  Object.keys(perMonthTransactions).forEach((item) => {
+    let totalEarnings = 0;
+
+    perMonthTransactions[item]?.forEach((txn) => {
+      if (txn.type === 'charge' && txn.amount > 0) {
+        totalEarnings += txn.amount - txn?.fee;
+      }
+    });
+
+    perMonthRevenueList.push(totalEarnings);
+    revenueMonths.push(item);
+  });
+
+  const finalData = { perMonthRevenueList, revenueMonths };
+  return finalData;
+};
+
+const getAllSellerCustomers = async (sellerId) => {
+  try {
+    const customers = await SellerCustomers.find({ sellerId }).populate('customerId');
+    return customers;
+  } catch (error) {
+    console.error(error);
+    throw new Error(error);
+  }
+};
+
+const getAllSellerCustomersWithModels = async (id) => {
+  try {
+    const sellerId = mongoose.Types.ObjectId(id);
+
+    const customers = await SellerCustomers.aggregate([
+      // Match the sellerId
+      { $match: { sellerId: sellerId } },
+
+      // Lookup user details
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'customerId',
+          foreignField: '_id',
+          as: 'customerDetails',
+        },
+      },
+
+      // Unwind the customer details array
+      { $unwind: '$customerDetails' },
+
+      // Lookup purchased models
+      {
+        $lookup: {
+          from: 'modelpurchases',
+          localField: 'customerId',
+          foreignField: 'user',
+          as: 'purchasedModels',
+        },
+      },
+
+      // Unwind the purchased models array
+      { $unwind: { path: '$purchasedModels', preserveNullAndEmptyArrays: true } },
+
+      // Lookup model details
+      {
+        $lookup: {
+          from: 'models',
+          localField: 'purchasedModels.model',
+          foreignField: '_id',
+          as: 'modelDetails',
+        },
+      },
+
+      // Unwind the model details array
+      { $unwind: { path: '$modelDetails', preserveNullAndEmptyArrays: true } },
+
+      // Group by customer and aggregate models
+      {
+        $group: {
+          _id: '$_id',
+          sellerId: { $first: '$sellerId' },
+          customerId: { $first: '$customerDetails' },
+          stripeCustomerId: { $first: '$stripeCustomerId' },
+          subscribedModels: {
+            $push: {
+              modelId: '$modelDetails._id',
+              modelName: '$modelDetails.name',
+            },
+          },
+        },
+      },
+
+      // Project the final structure
+      {
+        $project: {
+          _id: 1,
+          sellerId: 1,
+          customerId: {
+            role: '$customerId.role',
+            name: '$customerId.name',
+            email: '$customerId.email',
+            stripeId: '$customerId.stripeId',
+            id: '$customerId._id',
+          },
+          stripeCustomerId: 1,
+          subscribedModels: {
+            $filter: {
+              input: '$subscribedModels',
+              as: 'model',
+              cond: { $ne: ['$$model.modelId', null] },
+            },
+          },
+        },
+      },
+    ]);
+    return customers;
+  } catch (error) {
+    console.error(error);
+    throw new Error(error);
+  }
+};
+
+const getRevenueModelByCustomersAndSellerId = async (models) => {
+  let modelsWithCustomerCount = [];
+  try {
+    for (const model of models) {
+      const aggregationResult = await ModelPurchase.aggregate([
+        {
+          $match: {
+            model: model._id,
+            purchaseDate: { $gte: model.createdAt },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: '$purchaseDate' },
+              year: { $year: '$purchaseDate' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $sort: { '_id.year': 1, '_id.month': 1 },
+        },
+      ]);
+
+      const monthlyCounts = {};
+      console.log({ aggregationResult });
+      aggregationResult.forEach((result) => {
+        const monthYear = `${String(result._id.month).padStart(2, '0')}/${result._id.year}`;
+        monthlyCounts[monthYear] = result.count;
+      });
+
+      modelsWithCustomerCount.push({ id: model._id, modelName: model.name, data: monthlyCounts });
+    }
+
+    return modelsWithCustomerCount;
+  } catch (error) {
+    console.error(error);
+    throw new Error(error);
+  }
+};
+
+const getAllModels = async (seller) => {
+  let charges = [];
+  try {
+    const models = await Model.find({ seller });
+    return models;
+  } catch (error) {
+    console.log(error);
+    throw new Error(error);
+  }
+};
+
 module.exports = {
   createStripeCheckoutSession,
   createSeller,
@@ -218,4 +567,15 @@ module.exports = {
   findSellerByUserId,
   findSellerCustomer,
   createSellerCustomerIfNotExists,
+  fetchAllBalanceTransactions,
+  getMonthlyEarnings,
+  getTotalEarnings,
+  getBalance,
+  getBalanceSummary,
+  getSellerStatistics,
+  getAnnualRevenue,
+  getAllSellerCustomers,
+  getRevenueModelByCustomersAndSellerId,
+  getAllModels,
+  getAllSellerCustomersWithModels,
 };

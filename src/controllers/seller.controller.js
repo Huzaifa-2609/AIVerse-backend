@@ -74,6 +74,48 @@ const sellerEmailVerification = catchAsync(async (req, res) => {
   res.status(httpStatus.NO_CONTENT).send();
 });
 
+const getSellerDashboardStats = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const seller = await sellerService.findSellerById(id);
+  if (!seller) {
+    throw new Error('There is a mistake in the provided id');
+  }
+  const summary = await sellerService.getBalanceSummary(seller?.connectId);
+  const data = await sellerService.getSellerStatistics(id);
+  return res.status(httpStatus.OK).json({
+    ...summary,
+    ...data,
+  });
+});
+
+const getAnnualRevenue = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const seller = await sellerService.findSellerById(id);
+  if (!seller) {
+    throw new Error('There is a mistake in the provided id');
+  }
+  const data = await sellerService.getAnnualRevenue(seller?.connectId);
+  return res.status(httpStatus.OK).json({
+    data,
+  });
+});
+
+const getAnnualRevenueModel = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const models = await sellerService.getAllModels(id);
+  const revenue = await sellerService.getRevenueModelByCustomersAndSellerId(models);
+  // const data = await sellerService.getAnnualRevenue(seller?.connectId);
+  return res.status(httpStatus.OK).json({
+    revenue,
+  });
+});
+
+const getSellerAllCustomers = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const customers = await sellerService.getAllSellerCustomersWithModels(id);
+  return res.status(httpStatus.OK).json(customers);
+});
+
 module.exports = {
   selectPlan,
   createSeller,
@@ -81,4 +123,8 @@ module.exports = {
   getManageBillingLink,
   sendSellerVerificationEmail,
   sellerEmailVerification,
+  getAnnualRevenue,
+  getSellerDashboardStats,
+  getAnnualRevenueModel,
+  getSellerAllCustomers,
 };

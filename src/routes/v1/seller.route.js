@@ -9,5 +9,9 @@ router.post('/connect-registration', auth('connectRegistration'), sellerControll
 router.post('/manage-billing', auth('manageBilling'), sellerController.getManageBillingLink);
 router.post('/send-verification-email', auth(), sellerController.sendSellerVerificationEmail);
 router.post('/verify-email', auth(), sellerController.sellerEmailVerification);
+router.get('/stats/:id', auth(), sellerController.getSellerDashboardStats);
+router.get('/revenue/:id', auth(), sellerController.getAnnualRevenue);
+router.get('/revenue-model/:id', auth(), sellerController.getAnnualRevenueModel);
+router.get('/all-customers/:id', sellerController.getSellerAllCustomers);
 
 module.exports = router;
