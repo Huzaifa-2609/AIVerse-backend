@@ -74,6 +74,16 @@ const getUserModels = async (req, res) => {
   res.status(httpStatus.OK).json({ allModels });
 };
 
+const cancelSubscription = catchAsync(async (req, res) => {
+  const { purchaseId } = req.body;
+  const purchaseModelDataWithSellerInfo = await modelService.getPurchaseModelDataWithSellerInfoWithPurchaseID(purchaseId);
+  if (!purchaseModelDataWithSellerInfo || !purchaseModelDataWithSellerInfo?.model.seller?.connectId) {
+    throw new Error('There is some error with the purchase id');
+  }
+  await userService.cancelSubscription(purchaseId, purchaseModelDataWithSellerInfo?.model.seller?.connectId);
+  return res.status(httpStatus.OK).json({ message: 'Model Subscription cancelled and model deleted successfully' });
+});
+
 module.exports = {
   createUser,
   getUsers,
@@ -83,4 +93,5 @@ module.exports = {
   deleteUser,
   createUserCheckoutSession,
   getUserModels,
+  cancelSubscription,
 };

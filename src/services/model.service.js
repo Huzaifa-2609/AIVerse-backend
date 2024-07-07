@@ -100,8 +100,24 @@ const getModelPurchaseDetails = async (model, user) => {
   }
 };
 
+const getPurchaseModelDataWithSellerInfoWithPurchaseID = async (purchaseId) => {
+  try {
+    const modelPurchaseData = await ModelPurchase.findById(purchaseId).populate({
+      path: 'model',
+      populate: {
+        path: 'seller',
+      },
+    });
+    return modelPurchaseData;
+  } catch (error) {
+    console.error('Error finding model purchase details');
+    throw error;
+  }
+};
+
 module.exports = {
   getModelWithSellerDetails,
   createStripeModel,
   getModelPurchaseDetails,
+  getPurchaseModelDataWithSellerInfoWithPurchaseID,
 };

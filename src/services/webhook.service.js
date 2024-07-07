@@ -131,6 +131,7 @@ const updateUserPlan = async (event) => {
       user: sellerCustomer.customerId,
       model: model.id,
       isActive: true,
+      subscriptionId: data?.id,
     };
 
     await ModelPurchase.create(modelPurchaseData);

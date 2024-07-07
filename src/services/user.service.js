@@ -247,6 +247,24 @@ async function getAllChargesByCustomer(customer, stripeAccount) {
   }
 }
 
+const cancelSubscription = async (purchaseId, stripeAccount) => {
+  try {
+    const purchaseData = await ModelPurchase.findById(purchaseId);
+
+    if (purchaseData?.subscriptionId) {
+      const subscription = await stripe.subscriptions.cancel(
+        purchaseData?.subscriptionId,
+        { prorate: true },
+        { stripeAccount }
+      );
+    }
+    await ModelPurchase.findByIdAndDelete(purchaseId);
+  } catch (error) {
+    console.error(`Error cancelling the subscription for ${purchaseId}: ${error.message}`);
+    throw error;
+  }
+};
+
 module.exports = {
   createUser,
   queryUsers,
@@ -260,4 +278,5 @@ module.exports = {
   retrieveCustomer,
   getAllModelsByUserId,
   getAllChargesByCustomer,
+  cancelSubscription,
 };

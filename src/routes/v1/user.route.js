@@ -20,6 +20,7 @@ router
 router.post('/user-checkout-session', userController.createUserCheckoutSession);
 router.get('/user-models/:userId', userController.getUserModels);
 router.patch('/:userId/updatePassword', auth('manageUsers'), userController.updatePassword);
+router.post('/cancel-subscription', auth(), userController.cancelSubscription);
 
 module.exports = router;
 

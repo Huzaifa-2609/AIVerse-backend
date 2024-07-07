@@ -25,6 +25,10 @@ const modelPurchaseSchema = new mongoose.Schema(
       type: Boolean,
       required: true,
     },
+    subscriptionId: {
+      type: String,
+      default: null,
+    },
     apiKey: {
       type: String,
       unique: true,

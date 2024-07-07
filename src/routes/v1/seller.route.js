@@ -7,7 +7,7 @@ router.post('/register-as-seller', auth('sellerRegistration'), sellerController.
 router.post('/create-checkout-session', auth('selectPlan'), sellerController.selectPlan);
 router.post('/connect-registration', auth('connectRegistration'), sellerController.getConnectLink);
 router.post('/manage-billing', auth('manageBilling'), sellerController.getManageBillingLink);
-router.post('/send-verification-email', auth(), sellerController.sendSellerVerificationEmail);
+router.post('/send-verification-email', sellerController.sendSellerVerificationEmail);
 router.post('/verify-email', sellerController.sellerEmailVerification);
 router.get('/stats/:id', auth(), sellerController.getSellerDashboardStats);
 router.get('/revenue/:id', auth(), sellerController.getAnnualRevenue);
