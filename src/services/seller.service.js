@@ -14,8 +14,8 @@ const mongoose = require('mongoose');
  * @returns {Promise<Seller>} - Returns a Promise that resolves with the Seller.
  */
 
-const findSellerById = async (id) => {
-  const seller = await Seller.findById(id);
+const findSellerById = async (id, withUser = false) => {
+  const seller = withUser ? await Seller.findById(id).populate('userId') : Seller.findById(id);
   return seller;
 };
 
@@ -136,7 +136,7 @@ const getManageBillingPortalLink = async (stripeId) => {
 
 const sendSellerVerificationEmail = async (seller) => {
   const verifyEmailToken = await tokenService.generateVerifySellerEmailToken(seller);
-  await emailService.sendVerificationEmail(seller.businessEmail, verifyEmailToken);
+  await emailService.sendVerificationEmail(seller.businessEmail, verifyEmailToken, seller?.userId?.name);
 };
 
 const verifySellerEmail = async (verifyEmailToken) => {

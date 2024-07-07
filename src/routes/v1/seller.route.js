@@ -8,10 +8,10 @@ router.post('/create-checkout-session', auth('selectPlan'), sellerController.sel
 router.post('/connect-registration', auth('connectRegistration'), sellerController.getConnectLink);
 router.post('/manage-billing', auth('manageBilling'), sellerController.getManageBillingLink);
 router.post('/send-verification-email', auth(), sellerController.sendSellerVerificationEmail);
-router.post('/verify-email', auth(), sellerController.sellerEmailVerification);
+router.post('/verify-email', sellerController.sellerEmailVerification);
 router.get('/stats/:id', auth(), sellerController.getSellerDashboardStats);
 router.get('/revenue/:id', auth(), sellerController.getAnnualRevenue);
 router.get('/revenue-model/:id', auth(), sellerController.getAnnualRevenueModel);
-router.get('/all-customers/:id', sellerController.getSellerAllCustomers);
+router.get('/all-customers/:id', auth(), sellerController.getSellerAllCustomers);
 
 module.exports = router;

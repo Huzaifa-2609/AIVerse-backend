@@ -24,7 +24,7 @@ const createSeller = catchAsync(async (req, res) => {
 
 const sendSellerVerificationEmail = catchAsync(async (req, res) => {
   const { sellerId } = req.body;
-  const seller = await sellerService.findSellerById(sellerId);
+  const seller = await sellerService.findSellerById(sellerId, true);
   if (!seller) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Seller not found');
   }
