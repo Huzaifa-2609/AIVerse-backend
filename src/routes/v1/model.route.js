@@ -14,6 +14,8 @@ const {
   getModelsBySeller,
   getUsecases,
   hostModel,
+  createReview,
+  getReviewsByModelId,
 } = require('../../controllers/model.controller');
 
 // Multer configuration
@@ -51,5 +53,7 @@ router.get('/categories', getCategories);
 router.get('/usecases', getUsecases);
 router.get('/seller/:sellerId', getModelsBySeller);
 router.get('/:id', getModelByName);
+router.post('/reviews', createReview);
+router.get('/:modelId/reviews', getReviewsByModelId);
 
 module.exports = router;

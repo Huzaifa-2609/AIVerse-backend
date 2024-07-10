@@ -230,3 +230,24 @@ exports.getModelsBySeller = async (req, res) => {
     res.status(500).send({ message: error.message });
   }
 };
+
+exports.createReview = async (req, res) => {
+  try {
+    const reviewData = req.body;
+    const review = await modelService.createReview(reviewData);
+    console.log({ review });
+    res.status(201).json(review);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getReviewsByModelId = async (req, res) => {
+  try {
+    const { modelId } = req.params;
+    const reviews = await modelService.getReviewsByModelId(modelId);
+    res.status(200).json(reviews);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
