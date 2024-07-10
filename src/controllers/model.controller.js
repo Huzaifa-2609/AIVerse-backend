@@ -3,6 +3,8 @@ const Model = require('../models/model.model');
 const Seller = require('../models/seller.model');
 const { modelService } = require('../services');
 const { hostModelToAWS } = require('../controllers/modelhost.controller');
+const { deleteFromS3, deleteEcrImage, deleteAllModelConfigFromSagemaker } = require('../Helper/awshelper');
+const ModelPurchase = require('../models/modelPurchase.model');
 
 exports.createModel = async (req, res) => {
   const { name, description, img, price, seller, category, usecase } = req.body;
@@ -90,10 +92,15 @@ exports.deleteModel = async (req, res) => {
   try {
     const { id } = req.params;
     const model = await Model.findByIdAndDelete(id);
+    const repoName = 'aiverseecr';
 
     if (!model) {
       return res.status(404).json({ message: 'Model not found' });
     }
+
+    deleteFromS3(model.bucketname, model.bucketobjectkey);
+    deleteEcrImage(repoName, model.imagetag);
+    deleteAllModelConfigFromSagemaker(model.name);
 
     res.status(200).json({ message: 'Model deleted successfully' });
   } catch (error) {
@@ -117,6 +124,7 @@ exports.hostModel = async (req, res) => {
     console.log('The Uploaded File is : ', req.file);
 
     let model = await Model.findById(req.params.id);
+    model.name = model.name.replace(/\s+/g, '');
     await hostModelToAWS(req, res, model);
   } catch (error) {
     res.status(500).send({ message: error.message });
@@ -136,7 +144,15 @@ exports.getModelByName = async (req, res) => {
   try {
     const { id } = req.params;
     const model = await Model.findById(id);
-    return res.send(model);
+    const purchase = await ModelPurchase.findOne({ model: model._id });
+    const isPurchased = !!purchase;
+
+    const modelWithPurchaseFlag = {
+      ...model.toObject(),
+      isPurchased,
+    };
+
+    return res.send(modelWithPurchaseFlag);
   } catch (error) {
     return res.status(404).send({ message: error.message });
   }
@@ -198,7 +214,18 @@ exports.getModelsBySeller = async (req, res) => {
     const totalPages = Math.ceil(totalModels / perPage);
 
     const models = await Model.find(query).skip(offset).limit(perPage).sort({ createdAt: -1 });
-    res.status(200).json({ models, totalPages });
+
+    const modelsWithPurchaseFlag = await Promise.all(
+      models.map(async (model) => {
+        const purchase = await ModelPurchase.findOne({ model: model._id });
+        return {
+          ...model.toObject(),
+          isPurchased: !!purchase,
+        };
+      })
+    );
+
+    res.status(200).json({ models: modelsWithPurchaseFlag, totalPages });
   } catch (error) {
     res.status(500).send({ message: error.message });
   }
