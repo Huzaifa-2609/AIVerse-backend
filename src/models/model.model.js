@@ -4,7 +4,7 @@ const modelSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true },
     description: { type: String, required: true, maxlength: 250 },
-    img: { type: String, /*required: true*/ },
+    img: { type: String /*required: true*/ },
     price: { type: String },
     seller: {
       type: mongoose.SchemaTypes.ObjectId,
@@ -21,6 +21,7 @@ const modelSchema = new mongoose.Schema(
     bucketobjectkey: String,
     imagetag: String,
     ecrreponame: String,
+    averageRating: { type: Number, default: 0 },
   },
   {
     timestamps: true,

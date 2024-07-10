@@ -1,6 +1,6 @@
 const { sellerService } = require('.');
 const stripe = require('../config/stripe');
-const { Model, ModelPurchase } = require('../models');
+const { Model, ModelPurchase, Review } = require('../models');
 
 /**
  * Get user by id
@@ -115,9 +115,41 @@ const getPurchaseModelDataWithSellerInfoWithPurchaseID = async (purchaseId) => {
   }
 };
 
+const createReview = async (reviewData) => {
+  try {
+    const review = new Review(reviewData);
+    await review.save().then((r) => r.populate('userId'));
+    const populatedReview = await Review.findById(review._id).populate('userId', 'name');
+
+    const model = await Model.findById(reviewData.modelId);
+    const reviews = await Review.find({ modelId: reviewData.modelId });
+    const totalReviews = reviews.length;
+    const averageRating = reviews.reduce((acc, cur) => acc + cur.rating, 0) / totalReviews;
+
+    model.averageRating = averageRating;
+    await model.save();
+
+    return populatedReview;
+  } catch (error) {
+    console.error('Error creating model review');
+    throw error;
+  }
+};
+
+const getReviewsByModelId = async (modelId) => {
+  try {
+    return await Review.find({ modelId }).populate('userId', 'name');
+  } catch (error) {
+    console.error('Error finding model reviews');
+    throw error;
+  }
+};
+
 module.exports = {
   getModelWithSellerDetails,
   createStripeModel,
   getModelPurchaseDetails,
   getPurchaseModelDataWithSellerInfoWithPurchaseID,
+  createReview,
+  getReviewsByModelId,
 };
