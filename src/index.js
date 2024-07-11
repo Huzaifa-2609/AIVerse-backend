@@ -6,7 +6,7 @@ const logger = require('./config/logger');
 const AWS = require('aws-sdk');
 const http = require('http');
 const socketIO = require('socket.io');
-const socketinstance = require('./utils/socketio')
+const socketinstance = require('./utils/socketio');
 
 let server;
 
@@ -17,8 +17,8 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
   const httpServer = http.createServer(app);
   io = socketIO(httpServer, {
     cors: {
-      origin: "*"
-    }
+      origin: '*',
+    },
   });
   socketinstance.setIO(io);
   // Socket.IO connection event
@@ -38,7 +38,7 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
 
     // Add more socket event listeners here
     socket.on('userdetails', ({ id }) => {
-      socketinstance.setConnections(id, socket.id)
+      socketinstance.setConnections(id, socket.id);
     });
   });
   server = httpServer.listen(config.port, () => {
@@ -85,10 +85,10 @@ process.on('SIGTERM', () => {
 });
 
 const getConnections = () => {
-  return connections
-}
+  return connections;
+};
 const getIO = () => {
-  return io
-}
+  return io;
+};
 
-module.exports = { getConnections, getIO }
+module.exports = { getConnections, getIO };
