@@ -162,7 +162,7 @@ exports.getModels = async (req, res) => {
   try {
     const { currentPage = 1, category, usecase, q } = req.query;
     const perPage = 8;
-    let query = {};
+    let query = { status: 'InService' };
 
     if (category) {
       const categoryArray = category.split(',');
