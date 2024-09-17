@@ -83,12 +83,3 @@ process.on('SIGTERM', () => {
     server.close();
   }
 });
-
-const getConnections = () => {
-  return connections;
-};
-const getIO = () => {
-  return io;
-};
-
-module.exports = { getConnections, getIO };
